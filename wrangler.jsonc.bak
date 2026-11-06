@@ -1,0 +1,30 @@
+// Конфиг Cloudflare Worker: Nuxt SSR + /api/** (Nitro-хендлеры) в одном деплое.
+// Бэкенд Fastify из backend/ используется только для локальной разработки.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "polka",
+  "main": "frontend/.output/server/index.mjs",
+  "compatibility_date": "2025-07-15",
+  // Nitro требует nodejs_als (AsyncLocalStorage); nodejs_compatv2 включает его и остальные node-API.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "frontend/.output/public",
+    "binding": "ASSETS",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  // API живёт в этом же воркере, поэтому база пустая (same-origin).
+  "vars": {
+    "NUXT_PUBLIC_API_BASE": "",
+  },
+  // База карточек. database_id — заглушка: подставь id из `npx wrangler d1 create polka-db`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "polka-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "frontend/migrations",
+    },
+  ],
+}

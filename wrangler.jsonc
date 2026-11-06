@@ -23,7 +23,7 @@
     {
       "binding": "DB",
       "database_name": "polka-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "0be1f813-4297-452b-b297-1f220dcc45c6",
       "migrations_dir": "frontend/migrations",
     },
   ],
