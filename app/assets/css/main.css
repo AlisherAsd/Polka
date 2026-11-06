@@ -66,8 +66,9 @@
  * Каркас приложения на именованных областях grid.
  *
  * Правила объявлены вне `@layer components`: внутри слоя Tailwind не эмитит
- * `grid-template-areas`, из-за чего на мобильном grid-раскладка не
- * применялась и сайдбар занимал место в потоке.
+ * `grid-template-areas`. Шорткат `grid-template` не используется намеренно —
+ * минификатор Lightning CSS при сборке выносил часть правила из медиа-запроса,
+ * из-за чего мобильная раскладка применялась и на десктопе.
  *
  *   — ≥ sm: "sidebar header" / "sidebar main", сайдбар — колонка auto;
  *   — < sm: одна колонка "header" / "main", рейки нет (навигация в шторке).
@@ -75,11 +76,11 @@
 .layout-areas {
   display: grid;
   min-height: 100dvh;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
     "sidebar header"
     "sidebar main";
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .layout-area-sidebar {
@@ -99,10 +100,11 @@
 
 @media (max-width: 39.9375rem) {
   .layout-areas {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
       "header"
       "main";
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .layout-area-sidebar {
