@@ -83,7 +83,9 @@ export function useFiles() {
       loadPromise = reload()
     }
 
-    return loadPromise
+    // Дерево может устареть (например, папку создали в другой вкладке) —
+    // поэтому при каждом монтировании страницы перечитываем данные.
+    return loadPromise.then(() => reload())
   }
 
   /** Заметки в папке. */

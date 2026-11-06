@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 /**
  * Вторая панель — дерево папок и заметок с бэкенда (`/api/folders`, `/api/notes`).
@@ -7,8 +7,21 @@ import { onMounted, ref } from 'vue'
  */
 const { tree, error, init } = useFiles()
 
-/** Раскрытые папки дерева. */
-const expanded = ref<Record<string, boolean>>({ knowledge: true })
+/** Раскрытые папки дерева: корень и все папки верхнего уровня видны сразу. */
+const expanded = computed<Record<string, boolean>>(() => {
+  const state: Record<string, boolean> = { knowledge: true }
+
+  for (const node of tree.value) {
+    if (node.type === 'folder') {
+      state[node.id] = toggled.value[node.id] ?? true
+    }
+  }
+
+  return state
+})
+
+/** Ручные переключения пользователя поверх дефолта. */
+const toggled = ref<Record<string, boolean>>({})
 
 /** Папки доступны только после входа. */
 const { isAuth } = useAuth()
@@ -23,7 +36,7 @@ function handleToggle(id: string): void {
     return
   }
 
-  expanded.value = { ...expanded.value, [id]: !expanded.value[id] }
+  toggled.value = { ...toggled.value, [id]: !(toggled.value[id] ?? true) }
 }
 </script>
 
