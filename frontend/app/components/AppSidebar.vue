@@ -51,8 +51,7 @@ const isBoard = computed<boolean>(() => route.path === '/board')
 
     <div class="flex-1" aria-hidden="true" />
 
-    <!-- Профиль: открывает авторизацию -->
-    <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-user" square class="rounded-full"
-      aria-label="Профиль" title="Профиль" @click="openAuthModal" />
+    <!-- Профиль: гость — вход, авторизован — аватар с первой буквой и модалка профиля -->
+    <AppProfileButton />
   </aside>
 </template>

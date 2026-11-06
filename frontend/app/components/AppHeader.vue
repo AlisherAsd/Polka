@@ -13,6 +13,11 @@ const emit = defineEmits<{
 const { openModal } = useAddModal()
 const { open: sidePanelOpen, toggleSidePanel } = useSidePanel()
 const { isAuth } = useAuth()
+const { canUseAi, key: aiKey } = useAiKey()
+const { openModal: openKeyModal } = useAiKeyModal()
+
+/** Ключ введён — кнопка ключа подсвечивается. */
+const hasAiKey = computed<boolean>(() => aiKey.value.length > 0)
 
 /** Заглушка поиска: поле управляется локально, но никуда не отправляет запрос. */
 const searchQuery = ref<string>('')
@@ -48,19 +53,35 @@ function handleNotifications(): void {
           base: 'rounded-xl ring-0 ring-transparent outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0',
         }" />
 
-      <AuthRequiredPopover v-if="!isAuth" feature="Чат">
+      <AiFeaturePopover v-if="!canUseAi" feature="AI чат">
         <UButton color="neutral" variant="outline" size="md" icon="i-lucide-message-circle-question" label="AI чат"
           aria-label="AI чат" class="shrink-0 rounded-xl opacity-40" @click.prevent />
-      </AuthRequiredPopover>
+      </AiFeaturePopover>
 
       <UButton v-else color="neutral" variant="outline" size="md" icon="i-lucide-message-circle-question" label="AI чат"
         aria-label="AI чат" class="shrink-0 rounded-xl" @click="handleAsk" />
     </div>
 
-    <!-- Правая группа -->
+    <!-- Правая группа: премиум, уведомления, свой ключ, добавить -->
     <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+      <AppPremiumButton />
+
       <UButton color="neutral" variant="ghost" size="md" icon="i-lucide-bell" square aria-label="Уведомления"
         title="Уведомления" @click="handleNotifications" />
+
+      <!-- Ключ OpenRouter: круглая кнопка на акцентном фоне, открывает модалку ключа -->
+      <UButton
+        type="button"
+        color="primary"
+        variant="solid"
+        size="md"
+        icon="i-lucide-key-round"
+        square
+        class="shrink-0 rounded-full"
+        :aria-label="hasAiKey ? 'Свой ключ OpenRouter (задан)' : 'Добавить ключ OpenRouter'"
+        :title="hasAiKey ? 'Свой ключ сохранён' : 'Добавить свой ключ OpenRouter'"
+        @click="openKeyModal"
+      />
 
       <UButton type="button" color="primary" variant="solid" size="md" icon="i-lucide-plus" label="Добавить"
         class="rounded-xl" @click="openModal" />

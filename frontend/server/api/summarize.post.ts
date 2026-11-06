@@ -1,6 +1,7 @@
 // POST /api/summarize — суммаризация карточек через OpenRouter.
 // По умолчанию саммари сохраняется заметкой в папку `ai-voult`.
 import { chat } from '../utils/openrouter'
+import { userFromEvent } from '../utils/session'
 import { AI_FOLDER_ID, createNote, ensureAiFolder, toNote, type Note, type NoteRow } from '../utils/notes'
 import { optionalText } from '../utils/items'
 
@@ -56,17 +57,19 @@ export default defineEventHandler(async (event) => {
     'Ты помощник по работе с сохранёнными ссылками. Тебе дают список карточек ' +
     '(заголовок, автор, описание, ссылка). Отвечай кратко и по делу на русском.'
 
-  const user = [
+  const userMessage = [
     prompt.length > 0 ? `Задача: ${prompt}` : 'Задача: суммируй содержимое карточек.',
     '',
     `Карточки (${cards.length}):`,
     buildContext(cards),
   ].join('\n')
 
+  // Премиум использует серверный ключ, остальные — свой из заголовка.
+  const account = await userFromEvent(event)
   const text = await chat(event, [
     { role: 'system', content: system },
-    { role: 'user', content: user },
-  ])
+    { role: 'user', content: userMessage },
+  ], { isPremium: Boolean(account?.is_premium) })
 
   if (!text.trim()) {
     return { text, note: null }

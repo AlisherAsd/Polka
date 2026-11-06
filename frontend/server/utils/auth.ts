@@ -21,6 +21,8 @@ export interface UserRow {
   password_hash: string
   password_salt: string
   iterations: number
+  /** 1 — ИИ работает серверным ключом (`OPENROUTER_KEY`). */
+  is_premium: number
   created_at: string
 }
 
@@ -37,6 +39,8 @@ export interface SessionRow {
 export interface PublicUser {
   id: string
   email: string
+  /** Премиум: запросы к ИИ идут серверным ключом. */
+  isPremium: boolean
   createdAt: string
 }
 
@@ -146,7 +150,12 @@ export const PASSWORD_MIN_LENGTH = 8
 
 /** Строка пользователя → публичный JSON. */
 export function toPublicUser(user: UserRow): PublicUser {
-  return { id: user.id, email: user.email, createdAt: user.created_at }
+  return {
+    id: user.id,
+    email: user.email,
+    isPremium: Boolean(user.is_premium),
+    createdAt: user.created_at,
+  }
 }
 
 /** `event` → устройства для записи в сессию (обрезано, чтобы не раздувать базу). */

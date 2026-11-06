@@ -14,7 +14,10 @@ const { notes } = useFiles()
 const { scale, zoomIn, zoomOut, reset, setScale } = useBoardZoom()
 const { openModal: openSummarize } = useSummarizeModal()
 
-/** Саммари доступно только после входа. */
+/** Саммари требует доступ к ИИ (свой ключ или премиум) и вход в аккаунт. */
+const { canUseAi } = useAiKey()
+const { openModal: openKeyModal } = useAiKeyModal()
+const { openModal: openAuthModal } = useAuthModal()
 const { isAuth } = useAuth()
 
 const CARD_WIDTH = 200
@@ -461,7 +464,7 @@ onBeforeUnmount(() => {
       class="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center"
     >
       <!-- Без входа кнопка недоступна: показываем подсказку со входом -->
-      <AuthRequiredPopover v-if="!isAuth" feature="Суммировать ИИ">
+      <AiFeaturePopover v-if="!canUseAi" feature="Суммировать ИИ">
         <UButton
           type="button"
           color="neutral"
@@ -471,9 +474,9 @@ onBeforeUnmount(() => {
           :label="`Суммировать ИИ · ${selectedIds.length}`"
           class="pointer-events-auto cursor-not-allowed rounded-full px-5 shadow-lg opacity-60"
           aria-disabled="true"
-          @click.stop
+          @click.stop="isAuth ? openKeyModal() : openAuthModal()"
         />
-      </AuthRequiredPopover>
+      </AiFeaturePopover>
 
       <UButton
         v-else

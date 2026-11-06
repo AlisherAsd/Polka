@@ -55,6 +55,7 @@ export default defineEventHandler(async (event) => {
     password_hash: hash,
     password_salt: salt,
     iterations,
+    is_premium: 0,
     created_at: now,
   }
 

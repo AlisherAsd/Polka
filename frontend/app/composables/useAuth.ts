@@ -10,6 +10,8 @@ import { apiFetch, useApiBase } from '~/api/client'
 export interface AuthUser {
   id: string
   email: string
+  /** Премиум: запросы к ИИ идут серверным ключом. */
+  isPremium: boolean
   createdAt: string
 }
 

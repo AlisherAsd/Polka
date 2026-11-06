@@ -63,5 +63,11 @@ const { open } = useSidePanel()
     <AppFolderModal />
 
     <AppAuthModal />
+
+    <AppAiKeyModal />
+
+    <AppPremiumModal />
+
+    <AppProfileModal />
   </div>
 </template>

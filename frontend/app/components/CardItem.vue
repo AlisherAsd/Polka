@@ -12,9 +12,11 @@ const emit = defineEmits<{
   toggle: [id: string]
 }>()
 
-/** Саммари — только для авторизованных, как и на доске. */
-const { isAuth } = useAuth()
+/** Саммари требует доступ к ИИ: свой ключ или премиум (и вход в аккаунт). */
+const { canUseAi } = useAiKey()
+const { openModal: openKeyModal } = useAiKeyModal()
 const { openModal: openAuthModal } = useAuthModal()
+const { isAuth } = useAuth()
 
 /** Поповер «Суммировать»: открыт максимум у одной карточки, сетку не двигает. */
 const { isOpen, close: closePopover, summaryOf, openWithSummary } = useCardPopover()
@@ -24,8 +26,13 @@ const summaryState = computed(() => summaryOf(props.card.id))
 
 /** Кнопка/блок карточки запускают запрос саммари (повторно — без запроса). */
 function handleSummarize(): void {
-  if (!isAuth.value) {
-    openAuthModal()
+  if (!canUseAi.value) {
+    // Без аккаунта сначала вход, иначе — модалка своего ключа.
+    if (isAuth.value) {
+      openKeyModal()
+    } else {
+      openAuthModal()
+    }
 
     return
   }
@@ -142,8 +149,26 @@ function handleToggle(): void {
         <span class="text-xs">Нет превью</span>
       </div>
 
-      <!-- «Суммировать»: открывает панель под картинкой вместо блока описания -->
+      <!--
+        «Суммировать»: без доступа к ИИ кнопка заперта и показывает ту же
+        подсказку, что и на доске («свой ключ или премиум» / «нужен вход»).
+      -->
+      <AiFeaturePopover v-if="!canUseAi" feature="Суммировать ИИ">
+        <UButton
+          type="button"
+          color="neutral"
+          variant="solid"
+          size="xs"
+          icon="i-lucide-lock"
+          label="Суммировать"
+          class="absolute bottom-2 left-2 rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
+          :aria-label="`Суммировать «${card.title}» — нужен доступ к ИИ`"
+          @click.stop="handleSummarize"
+        />
+      </AiFeaturePopover>
+
       <UButton
+        v-else
         type="button"
         color="neutral"
         variant="solid"
