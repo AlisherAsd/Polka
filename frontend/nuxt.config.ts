@@ -89,6 +89,11 @@ export default defineNuxtConfig({
         { rel: "icon", type: "image/png", href: "/miniliogo.png" },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
+          rel: "apple-touch-icon",
+          sizes: "180x180",
+          href: "/logofull.png",
+        },
+        {
           rel: "preconnect",
           href: "https://fonts.gstatic.com",
           crossorigin: "",
