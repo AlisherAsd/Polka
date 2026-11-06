@@ -1,0 +1,177 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/*
+ * Палитры Nuxt UI (primary/neutral) — в формате Tailwind v4 `@theme`.
+ * Отдельный `app/app.config.ts` не нужен: Nuxt UI v4 читает цвета прямо
+ * из CSS-переменных.
+ */
+@theme static {
+  --color-primary-50: #fff2ec;
+  --color-primary-100: #ffe0d1;
+  --color-primary-200: #ffbfa4;
+  --color-primary-300: #ff9c74;
+  --color-primary-400: #ff7a44;
+  --color-primary-500: #ff4c13;
+  --color-primary-600: #e9420e;
+  --color-primary-700: #c5350a;
+  --color-primary-800: #9c2a08;
+  --color-primary-900: #7a2207;
+  --color-primary-950: #431204;
+
+  --color-neutral-50: #f6f6f6;
+  --color-neutral-100: #f2f2f2;
+  --color-neutral-200: #e0e0e0;
+  --color-neutral-300: #cfcfcf;
+  --color-neutral-400: #a8a8a8;
+  --color-neutral-500: #8c8c8c;
+  --color-neutral-600: #676767;
+  --color-neutral-700: #494949;
+  --color-neutral-800: #2c2c2c;
+  --color-neutral-900: #1c1c1c;
+  --color-neutral-950: #111111;
+}
+
+/* Токены приложения, на которых держится собственная вёрстка. */
+@theme {
+  --color-app: #f2f2f2;
+  --color-surface: #ffffff;
+  --color-line: #e0e0e0;
+  --color-ink: #2c2c2c;
+  --color-dim: #676767;
+  --color-mute: #8c8c8c;
+  --color-accent: #ff4c13;
+  --color-accent-hover: #e9420e;
+
+  --font-sans: Onest, Manrope, Inter, system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/*
+ * Каркас приложения на именованных областях grid.
+ * Все три области объявлены и в desktop-, и в mobile-раскладке: если
+ * `grid-area: sidebar` ссылается на несуществующую область, браузер по
+ * спецификации отбрасывает ВЕСЬ grid.
+ *   — ≥ sm: "sidebar header" / "sidebar main", сайдбар — колонка auto;
+ *   — < sm: сайдбар вынесен из grid-flow в fixed-рейку, контент в одну колонку.
+ */
+@layer components {
+  .layout-areas {
+    display: grid;
+    min-height: 100dvh;
+    grid-template-areas:
+      "sidebar header"
+      "sidebar main";
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .layout-area-sidebar {
+    grid-area: sidebar;
+  }
+
+  .layout-area-header {
+    grid-area: header;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .layout-area-main {
+    grid-area: main;
+  }
+
+  @media (max-width: 39.9375rem) {
+    .layout-areas {
+      grid-template-areas:
+        "header header"
+        "main main";
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .layout-area-sidebar {
+      position: fixed;
+      inset-block: 0;
+      inset-inline-start: 0;
+      z-index: 30;
+    }
+
+    .layout-area-header,
+    .layout-area-main {
+      padding-inline-start: 4rem;
+    }
+  }
+}
+
+html,
+body,
+#__nuxt {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-app);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/*
+ * Браузерные UA-стили красят `input:invalid` в красный, `:user-valid` — в зелёный.
+ * Приложение показывает ошибки текстом под полем, поэтому нативная цветовая
+ * подсветка отключена; focus-ring остаётся прежним.
+ */
+:where(input):invalid,
+:where(input):user-valid,
+:where(input):user-invalid {
+  border-color: var(--color-line);
+  outline-color: currentcolor;
+  box-shadow: none;
+}
+
+/*
+ * Focus-ring только для «кнопочных» элементов. Поля ввода исключены:
+ * у них свой нейтральный фокус (Nuxt UI + правило ниже), иначе к рамке
+ * добавляется цветной outline.
+ */
+:where(a, button, [role="button"]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+:where(input, textarea, select):focus-visible {
+  outline: none;
+}
+
+/*
+ * Нейтральный фокус у полей ввода: убираем цветной ring/outline Nuxt UI
+ * и браузерную подсветку, оставляя только затемнение рамки.
+ */
+:where(input, textarea, select) {
+  outline: none;
+  box-shadow: none;
+}
+
+:where(input, textarea, select):focus-visible {
+  border-color: var(--color-neutral-400);
+}
