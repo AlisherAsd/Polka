@@ -1,20 +1,26 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import MarkdownIt from 'markdown-it'
-import { findNote } from '~/data/notes'
+import { fetchNote, updateNote } from '~/api/notes'
+import type { Note } from '~/api/notes'
 
 /**
- * Страница заметки: markdown редактируется и рендерится на клиенте.
- * Сохраняется только в памяти страницы — в бэкенд (`/api/items`) не пишется.
+ * Страница заметки: markdown редактируется и рендерится на клиенте,
+ * сохранение уходит в `PATCH /api/notes/:id`.
  */
 const route = useRoute()
 
 const noteId = computed<string>(() => String(route.params.id ?? ''))
-const note = computed(() => findNote(noteId.value))
 
-/** Текущий markdown. Заполняется сразу из мока, чтобы содержимое попало в SSR. */
-const source = ref<string>(note.value?.content ?? '')
-const title = ref<string>(note.value?.title ?? '')
+/** Заметка грузится только на клиенте: SSR-разметка остаётся пустой. */
+const note = ref<Note | null>(null)
+const loading = ref<boolean>(false)
+const saving = ref<boolean>(false)
+const failure = ref<string>('')
+
+/** Текущий markdown. */
+const source = ref<string>('')
+const title = ref<string>('')
 const isEditing = ref<boolean>(false)
 
 /** Текст, с которого начали редактирование — для «Отменить». */
@@ -24,7 +30,44 @@ const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
 const html = computed<string>(() => (source.value ? md.render(source.value) : ''))
 
-const isDirty = computed<boolean>(() => source.value !== snapshot)
+const isDirty = computed<boolean>(
+  () => source.value !== snapshot || title.value !== (note.value?.title ?? ''),
+)
+
+const updatedLabel = computed<string>(() => {
+  const value = note.value?.updatedAt
+
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+})
+
+async function load(): Promise<void> {
+  loading.value = true
+  failure.value = ''
+
+  try {
+    note.value = await fetchNote(noteId.value)
+    source.value = note.value.content
+    title.value = note.value.title
+    snapshot = source.value
+  } catch (error) {
+    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Заметка не найдена'
+    note.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  void load()
+})
 
 function startEditing(): void {
   snapshot = source.value
@@ -33,7 +76,30 @@ function startEditing(): void {
 
 function cancelEditing(): void {
   source.value = snapshot
+  title.value = note.value?.title ?? ''
   isEditing.value = false
+}
+
+async function save(): Promise<void> {
+  if (!note.value || saving.value) {
+    return
+  }
+
+  saving.value = true
+  failure.value = ''
+
+  try {
+    note.value = await updateNote(note.value.id, {
+      title: title.value,
+      content: source.value,
+    })
+    snapshot = source.value
+    isEditing.value = false
+  } catch (error) {
+    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Не удалось сохранить заметку'
+  } finally {
+    saving.value = false
+  }
 }
 
 function handleInput(event: Event): void {
@@ -63,11 +129,18 @@ useHead(() => ({
 
         <div class="flex items-start justify-between gap-3">
           <div class="flex min-w-0 flex-col gap-1">
-            <h1 class="truncate text-2xl font-bold leading-tight text-ink sm:text-3xl">
+            <input
+              v-if="isEditing"
+              v-model="title"
+              class="w-full truncate rounded-lg border border-line bg-surface px-2 py-1 text-2xl font-bold leading-tight text-ink outline-none focus:border-accent sm:text-3xl"
+              aria-label="Название заметки"
+            >
+            <h1 v-else class="truncate text-2xl font-bold leading-tight text-ink sm:text-3xl">
               {{ title }}
             </h1>
             <p class="text-xs text-mute">
-              Обновлено {{ note.updatedAt }}
+              Обновлено {{ updatedLabel }}
+              <span v-if="note.folderId" class="text-mute">· папка {{ note.folderId }}</span>
               <span v-if="isDirty" class="text-primary-600">· не сохранено</span>
             </p>
           </div>
@@ -91,7 +164,8 @@ useHead(() => ({
                 icon="i-lucide-check"
                 label="Готово"
                 class="rounded-lg"
-                @click="isEditing = false"
+                :loading="saving"
+                @click="save"
               />
             </template>
 
@@ -134,8 +208,8 @@ useHead(() => ({
 
     <EmptyState
       v-else
-      title="Заметка не найдена"
-      description="Возможно, ссылка устарела или заметка удалена."
+      :title="loading ? 'Загружаем заметку…' : 'Заметка не найдена'"
+      :description="failure || 'Возможно, ссылка устарела или заметка удалена.'"
     />
   </section>
 </template>

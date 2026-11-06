@@ -12,6 +12,10 @@ const emit = defineEmits<{
   toggle: [id: string]
 }>()
 
+/** Саммари — только для авторизованных, как и на доске. */
+const { isAuth } = useAuth()
+const { openModal: openAuthModal } = useAuthModal()
+
 /** Поповер «Суммировать»: открыт максимум у одной карточки, сетку не двигает. */
 const { isOpen, close: closePopover, summaryOf, openWithSummary } = useCardPopover()
 
@@ -20,6 +24,12 @@ const summaryState = computed(() => summaryOf(props.card.id))
 
 /** Кнопка/блок карточки запускают запрос саммари (повторно — без запроса). */
 function handleSummarize(): void {
+  if (!isAuth.value) {
+    openAuthModal()
+
+    return
+  }
+
   void openWithSummary(props.card)
 }
 

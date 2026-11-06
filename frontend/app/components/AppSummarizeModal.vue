@@ -72,6 +72,7 @@ async function submit(): Promise<void> {
         prompt: prompt.value,
         // Бэкенд /api/summarize ждёт старое поле `description` — кладём туда саммари.
         cards: props.cards.map((card) => ({
+          id: card.id,
           title: card.title,
           description: card.summary,
           url: card.url,
@@ -81,6 +82,9 @@ async function submit(): Promise<void> {
 
     answer.value = res.text
     await persistSummary(props.cards, res.text)
+
+    // Бэкенд сложил саммари файлом в `ai-voult` — обновляем дерево файлов.
+    await useFiles().reload()
   } catch (error) {
     failure.value =
       error instanceof Error ? error.message : 'Не удалось получить ответ'

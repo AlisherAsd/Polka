@@ -1,81 +1,169 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { FILE_TREE } from '~/data/fileTree'
-import type { FileNode } from '~/data/fileTree'
+import { computed, ref } from 'vue'
 
 /**
  * Модалка «В папку»: выбирает папку для выделенных карточек.
- * Доступные папки берутся из того же мокового дерева, что и вторая панель.
+ * Список папок — реальный (`/api/folders`); если нужной нет, её можно создать.
+ * Применение создаёт заметку с названием и описанием карточки.
  */
-
 const { open, closeModal } = useFolderModal()
 const { selectedIds, cards, clearSelection, setFolder } = useCards()
+const { selectableFolders, init, reload, addNote, noteForItem } = useFiles()
 
-/** Выбранная папка (id узла). */
+/** Выбранная папка (id). */
 const selectedFolderId = ref<string>('')
+/** Название новой папки. */
+const newFolderName = ref<string>('')
+const creating = ref<boolean>(false)
+const failure = ref<string>('')
 
-/** Только папки (файлы выбирать бессмысленно). */
-function flattenFolders(nodes: readonly FileNode[], depth = 0): { id: string; name: string; depth: number }[] {
-  return nodes.flatMap((node) => {
-    if (node.type !== 'folder') {
-      return []
-    }
+const folders = computed(() => selectableFolders.value)
 
-    const self = { id: node.id, name: node.name, depth }
-
-    return [self, ...flattenFolders(node.children ?? [], depth + 1)]
-  })
-}
-
-const FOLDERS = flattenFolders(FILE_TREE)
-
-/** Название папки текущей выделенной карточки — как значение по умолчанию. */
-function currentFolderName(): string {
+/** Название папки текущей выделенной карточки — значение по умолчанию. */
+function currentFolder(): string {
   const first = cards.value.find((card) => selectedIds.value.includes(card.id))
 
-  return first?.folder ?? ''
+  return first?.folderId ?? ''
 }
 
 function handleOpenChange(value: boolean): void {
   open.value = value
 
   if (value) {
-    const current = currentFolderName()
-    const match = FOLDERS.find((folder) => folder.name === current)
-
-    selectedFolderId.value = match ? match.id : ''
+    void init().then(() => {
+      selectedFolderId.value = currentFolder()
+    })
+    failure.value = ''
+    newFolderName.value = ''
   }
 }
 
-function apply(): void {
-  const folder = FOLDERS.find((item) => item.id === selectedFolderId.value)
+/** Создаёт папку и сразу выбирает её. */
+async function createFolder(): Promise<void> {
+  const name = newFolderName.value.trim()
 
-  if (folder && selectedIds.value.length > 0) {
-    setFolder([...selectedIds.value], folder.name, folder.id)
+  if (name.length === 0 || creating.value) {
+    return
   }
 
-  closeModal()
-  clearSelection()
+  creating.value = true
+  failure.value = ''
+
+  try {
+    const created = await $fetch<{ folder: { id: string } }>('/api/folders', {
+      method: 'POST',
+      body: { name },
+    })
+
+    await reload()
+    selectedFolderId.value = created.folder.id
+    newFolderName.value = ''
+  } catch (error) {
+    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Не удалось создать папку'
+  } finally {
+    creating.value = false
+  }
+}
+
+/**
+ * Применяет папку: создаёт заметку (файл) в этой папке с названием карточки
+ * и её описанием/ссылкой, либо переносит уже существующую заметку.
+ */
+async function apply(): Promise<void> {
+  const folder = folders.value.find((item) => item.id === selectedFolderId.value)
+  const ids = [...selectedIds.value]
+
+  if (!folder || ids.length === 0 || creating.value) {
+    closeModal()
+    clearSelection()
+
+    return
+  }
+
+  const targets = cards.value.filter((card) => ids.includes(card.id))
+
+  setFolder(ids, folder.name, folder.id)
+
+  try {
+    for (const card of targets) {
+      const existing = noteForItem(card.id)
+
+      if (existing) {
+        await $fetch(`/api/notes/${encodeURIComponent(existing.id)}`, {
+          method: 'PATCH',
+          body: { folderId: folder.id },
+        })
+
+        continue
+      }
+
+      const description = card.summary?.trim() || card.content?.trim() || 'Без описания'
+      const content = card.url ? `${description}\n\nИсточник: ${card.url}` : description
+
+      await addNote({
+        title: card.title,
+        content,
+        folderId: folder.id,
+        itemId: card.id,
+        url: card.url ?? null,
+      })
+    }
+
+    await reload()
+  } catch (error) {
+    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Не удалось сохранить папку'
+  } finally {
+    closeModal()
+    clearSelection()
+  }
 }
 </script>
 
 <template>
   <UModal :open="open" title="Переместить в папку" @update:open="handleOpenChange">
     <template #body>
-      <div class="flex flex-col gap-1">
-        <UButton
-          v-for="folder in FOLDERS"
-          :key="folder.id"
-          type="button"
-          color="neutral"
-          :variant="selectedFolderId === folder.id ? 'soft' : 'ghost'"
-          size="sm"
-          :icon="selectedFolderId === folder.id ? 'i-lucide-folder-check' : 'i-lucide-folder'"
-          :label="folder.name"
-          class="w-full justify-start rounded-lg"
-          :style="{ paddingLeft: `${12 + folder.depth * 16}px` }"
-          @click="selectedFolderId = folder.id"
-        />
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-1">
+          <UButton
+            v-for="folder in folders"
+            :key="folder.id"
+            type="button"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-folder"
+            :label="folder.name"
+            class="w-full justify-start rounded-lg"
+            :class="selectedFolderId === folder.id ? 'bg-app text-ink' : undefined"
+            :aria-pressed="selectedFolderId === folder.id"
+            @click="selectedFolderId = folder.id"
+          />
+        </div>
+
+        <div class="flex items-center gap-2">
+          <UInput
+            v-model="newFolderName"
+            placeholder="Новая папка"
+            size="sm"
+            class="flex-1"
+            :ui="{ base: 'rounded-lg' }"
+            @keydown.enter.prevent="createFolder"
+          />
+          <UButton
+            type="button"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-plus"
+            label="Создать"
+            class="rounded-lg"
+            :loading="creating"
+            :disabled="newFolderName.trim().length === 0"
+            @click="createFolder"
+          />
+        </div>
+
+        <p v-if="failure" class="text-xs text-[#b3261e]">{{ failure }}</p>
       </div>
     </template>
 
@@ -85,19 +173,18 @@ function apply(): void {
           type="button"
           color="neutral"
           variant="ghost"
-          size="md"
+          size="sm"
           label="Отмена"
-          class="rounded-xl"
-          @click="closeModal"
+          class="rounded-lg"
+          @click="handleOpenChange(false)"
         />
         <UButton
           type="button"
           color="primary"
           variant="solid"
-          size="md"
-          icon="i-lucide-folder-input"
+          size="sm"
           label="Переместить"
-          class="rounded-xl px-5"
+          class="rounded-lg"
           :disabled="selectedFolderId.length === 0"
           @click="apply"
         />

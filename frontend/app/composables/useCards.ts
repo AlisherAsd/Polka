@@ -273,7 +273,11 @@ export function useCards() {
     );
   }
 
-  /** Сессионно запоминает папку (коллекцию) для указанных карточек. */
+  /**
+   * Запоминает папку у карточек в локальном состоянии.
+   * Файл в папке создаёт `AppFolderModal` через `/api/notes`, поэтому
+   * здесь нет ни HTTP, ни работы с папками.
+   */
   function setFolder(ids: string[], folder: string, folderId: string): void {
     const targets = new Set(ids);
 

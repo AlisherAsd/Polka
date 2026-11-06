@@ -1,7 +1,12 @@
-// POST /api/summarize — суммаризация выбранных карточек через OpenRouter.
+// POST /api/summarize — суммаризация карточек через OpenRouter.
+// По умолчанию саммари сохраняется заметкой в папку `ai-voult`.
 import { chat } from '../utils/openrouter'
+import { AI_FOLDER_ID, createNote, ensureAiFolder, toNote, type Note, type NoteRow } from '../utils/notes'
+import { optionalText } from '../utils/items'
 
 interface CardPayload {
+  /** id карточки (`items.id`) — тогда саммари привязывается к ней. */
+  id?: string
   title?: string
   description?: string
   url?: string
@@ -32,7 +37,14 @@ function buildContext(cards: readonly CardPayload[]): string {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = (await readBody<{ prompt?: string; cards?: CardPayload[] }>(event)) ?? {}
+  const body = (await readBody<{
+    prompt?: string
+    cards?: CardPayload[]
+    /** `false` — не создавать заметку в `ai-voult`. */
+    save?: boolean
+    /** id карточки, если фронт присылает одну карточку массивом без id. */
+    itemId?: string
+  }>(event)) ?? {}
   const prompt = (body.prompt ?? '').trim()
   const cards = Array.isArray(body.cards) ? body.cards : []
 
@@ -56,5 +68,66 @@ export default defineEventHandler(async (event) => {
     { role: 'user', content: user },
   ])
 
-  return { text }
+  if (!text.trim()) {
+    return { text, note: null }
+  }
+
+  // Саммари складывается заметкой в служебную папку `ai-voult`.
+  let note: Note | null = null
+
+  if (body.save !== false) {
+    try {
+      const db = dbOf(event)
+
+      await ensureAiFolder(db)
+
+      const single = cards.length === 1 ? cards[0] : undefined
+      const itemId = optionalText(body.itemId) ?? optionalText(single?.id) ?? null
+      const first = cards[0]
+
+      // Карточка → файл-карточка в `ai-voult`: название, саммари, ссылка на исходник.
+      const title = `${optionalText(first?.title) ?? 'Саммари'} — саммари`
+      const source = optionalText(first?.url)
+      const content = source ? `${text.trim()}\n\nИсточник: ${source}` : text.trim()
+
+      // Повторная суммаризация той же карточки обновляет её файл, а не плодит копии.
+      const existing = itemId
+        ? await db.first<{ id: string }>(
+          'SELECT id FROM notes WHERE item_id = ? AND folder_id = ?',
+          itemId,
+          AI_FOLDER_ID,
+        )
+        : null
+
+      if (existing) {
+        const updatedAt = new Date().toISOString()
+
+        await db.run(
+          'UPDATE notes SET title = ?, content = ?, url = ?, updated_at = ? WHERE id = ?',
+          title,
+          content,
+          source ?? null,
+          updatedAt,
+          existing.id,
+        )
+
+        const row = await db.first<NoteRow>('SELECT * FROM notes WHERE id = ?', existing.id)
+
+        note = row ? toNote(row) : null
+      } else {
+        note = await createNote(db, {
+          title,
+          content,
+          folderId: AI_FOLDER_ID,
+          itemId,
+          url: source ?? null,
+        })
+      }
+    } catch (error) {
+      // Саммари уже получено — не роняем ответ из-за сохранения заметки.
+      console.error('Не удалось сохранить саммари в ai-voult', error)
+    }
+  }
+
+  return { text, note }
 })

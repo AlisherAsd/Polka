@@ -10,6 +10,9 @@ const { cards, init } = useCards()
 const { scale, zoomIn, zoomOut, reset, setScale } = useBoardZoom()
 const { openModal: openSummarize } = useSummarizeModal()
 
+/** Саммари доступно только после входа. */
+const { isAuth } = useAuth()
+
 interface PlacedCard {
   card: Card
   x: number
@@ -43,7 +46,11 @@ function layoutCards(list: readonly Card[]): void {
 /** Шаг по вертикали: чуть больше карточки, чтобы было где выделять пустотой. */
 const CARD_ROW_PITCH = CARD_HEIGHT + ROW_GAP
 
+const { init: initFiles } = useFiles()
+
 onMounted(() => {
+  // Папки и заметки — отдельная загрузка; без неё дерево пустое после перезагрузки.
+  initFiles()
   init()
   layoutCards(cards.value)
 })
@@ -330,7 +337,23 @@ onBeforeUnmount(() => {
       v-if="selectedIds.length > 0"
       class="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center"
     >
+      <!-- Без входа кнопка недоступна: показываем подсказку со входом -->
+      <AuthRequiredPopover v-if="!isAuth" feature="Суммировать ИИ">
+        <UButton
+          type="button"
+          color="neutral"
+          variant="solid"
+          size="md"
+          icon="i-lucide-lock"
+          :label="`Суммировать ИИ · ${selectedIds.length}`"
+          class="pointer-events-auto cursor-not-allowed rounded-full px-5 shadow-lg opacity-60"
+          aria-disabled="true"
+          @click.stop
+        />
+      </AuthRequiredPopover>
+
       <UButton
+        v-else
         type="button"
         color="primary"
         variant="solid"

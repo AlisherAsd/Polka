@@ -93,6 +93,7 @@ export function useCardPopover() {
         body: {
           cards: [
             {
+              id: card.id,
               title: card.title,
               description: source.slice(0, 8000),
               url: card.url,
@@ -101,7 +102,13 @@ export function useCardPopover() {
         },
       })
 
-      setSummary(card.id, { status: 'ready', text: res?.text?.trim() || 'Модель вернула пустой ответ' })
+      const text = res?.text?.trim() ?? ''
+
+      // Бэкенд сам складывает саммари файлом-карточкой в `ai-voult`
+      // (см. /api/summarize), поэтому дерево файлов перечитываем.
+      void useFiles().reload()
+
+      setSummary(card.id, { status: 'ready', text: text || 'Модель вернула пустой ответ' })
     } catch (error) {
       const message = (error as { data?: { message?: unknown } })?.data?.message
 

@@ -8,7 +8,11 @@ const { cards, loading, error, isEmpty, count, selectedIds, toggleSelection, rem
 const showSkeletons = computed<boolean>(() => loading.value)
 const skeletonCount = 4
 
+const { init: initFiles } = useFiles()
+
 onMounted(() => {
+  // Папки и заметки — отдельная загрузка; без неё дерево пустое после перезагрузки.
+  initFiles()
   // Карточки грузятся с бэкенда только здесь, на клиенте (SSR рендерит пустой список).
   init()
 })

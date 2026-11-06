@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { FileNode } from '~/data/fileTree'
-import { findNoteByFolder } from '~/data/notes'
-import { isMobileViewport } from '~/utils/viewport'
+import type { FileNode } from '~/utils/fileTree'
 
 /**
- * Узел дерева базы знаний. Рекурсивный.
- * Папки наполняются карточками: теми, у которых `folderId` совпадает с id папки.
+ * Узел дерева файлов. Папки раскрываются, файлы — это заметки из базы
+ * (`/api/notes`), клик открывает страницу заметки.
  */
 const props = defineProps<{
   node: FileNode
   depth: number
+  /** Раскрытые папки. */
   expanded: Record<string, boolean>
 }>()
 
@@ -18,48 +17,34 @@ const emit = defineEmits<{
   toggle: [id: string]
 }>()
 
-const { cardsInFolder } = useCards()
 const { closeMenu } = useMobileMenu()
 const { closeSidePanel } = useSidePanel()
 
-/**
- * Переход в заметку: пока связь моковая — по папке карточки.
- *
- * На телефоне закрываем бургер-меню (шторку навигации), на десктопе панель
- * файлов остаётся открытой.
- */
-async function openNote(folderId: string): Promise<void> {
-  const note = findNoteByFolder(folderId)
-
-  if (!note) {
-    return
-  }
-
+/** Переход в заметку. На телефоне заодно закрываем меню и панель. */
+async function openNote(noteId: string): Promise<void> {
   if (isMobileViewport()) {
     closeMenu()
     closeSidePanel()
   }
 
-  await navigateTo(`/note/${note.id}`)
+  await navigateTo(`/note/${noteId}`)
 }
 
 const isFolder = computed<boolean>(() => props.node.type === 'folder')
 const isOpen = computed<boolean>(() => props.expanded[props.node.id] === true)
 
-/** Карточки, «положенные» в эту папку. */
-const folderCards = computed(() => (isFolder.value ? cardsInFolder(props.node.id) : []))
-
 const childFolders = computed<readonly FileNode[]>(() =>
   (props.node.children ?? []).filter((child) => child.type === 'folder'),
 )
-
-const hasChildren = computed<boolean>(
-  () => childFolders.value.length > 0 || folderCards.value.length > 0,
+const childFiles = computed<readonly FileNode[]>(() =>
+  (props.node.children ?? []).filter((child) => child.type === 'file'),
 )
+
+const hasChildren = computed<boolean>(() => childFolders.value.length > 0 || childFiles.value.length > 0)
 
 const icon = computed<string>(() => {
   if (!isFolder.value) {
-    return 'i-lucide-file'
+    return 'i-lucide-file-text'
   }
 
   return isOpen.value ? 'i-lucide-folder-open' : 'i-lucide-folder'
@@ -71,6 +56,12 @@ const indent = computed<string>(() => `${props.depth * 12}px`)
 function handleClick(): void {
   if (isFolder.value) {
     emit('toggle', props.node.id)
+
+    return
+  }
+
+  if (props.node.note) {
+    void openNote(props.node.note.id)
   }
 }
 </script>
@@ -86,6 +77,7 @@ function handleClick(): void {
       :label="node.name"
       class="w-full justify-start rounded-lg"
       :style="{ paddingLeft: indent }"
+      :title="node.name"
       :aria-expanded="isFolder ? isOpen : undefined"
       @click="handleClick"
     >
@@ -109,20 +101,14 @@ function handleClick(): void {
         @toggle="emit('toggle', $event)"
       />
 
-      <li v-for="card in folderCards" :key="card.id" class="min-w-0">
-        <UButton
-          type="button"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          icon="i-lucide-file-text"
-          :label="card.title"
-          class="w-full justify-start rounded-lg"
-          :style="{ paddingLeft: `${(depth + 1) * 12}px` }"
-          :title="card.title"
-          @click="openNote(node.id)"
-        />
-      </li>
+      <FileTreeNode
+        v-for="file in childFiles"
+        :key="file.id"
+        :node="file"
+        :depth="depth + 1"
+        :expanded="expanded"
+        @toggle="emit('toggle', $event)"
+      />
     </ul>
   </li>
 </template>
