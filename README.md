@@ -1,18 +1,21 @@
 # polka
 
-Два приложения в одном репозитории:
+Монорепозиторий на npm workspaces, два приложения:
 
 ```
-frontend/   Nuxt 4 + @nuxt/ui (Vue 3) — UI
-backend/    Fastify 5 + TypeScript (ESM) — API и обращения к OpenRouter
+frontend/   polka-frontend — Nuxt 4 + @nuxt/ui (Vue 3), деплоится на Cloudflare Workers
+backend/    polka-backend  — Fastify 5 + TypeScript (ESM), API и Cloudflare D1
+wrangler.jsonc              worker-конфиг фронтенда (корень репозитория)
 ```
 
 ## Установка
 
 ```bash
-npm run install:all        # ставит зависимости frontend и backend
-npm install                # зависимости корня (concurrently)
+npm install                # один раз в корне: ставит оба воркспейса
 ```
+
+Зависимости обоих приложений поднимаются в корневой `node_modules`,
+lock-файл один — `package-lock.json` в корне.
 
 ## Запуск
 
@@ -24,7 +27,43 @@ npm run dev:back           # только Fastify (http://localhost:3001)
 
 Проверка API: `curl http://localhost:3001/health` → `{"ok":true}`.
 
+## Сборка и деплой
+
+```bash
+npm run build              # Nuxt для Cloudflare Workers → frontend/.output
+npm run deploy             # wrangler deploy из корня (wrangler.jsonc)
+npm run typecheck          # nuxt typecheck + tsc --noEmit
+```
+
+Preset Nitro — `cloudflare_module` (`frontend/nuxt.config.ts`), переопределяется
+`NITRO_PRESET`. Worker-конфиг лежит в корне (`wrangler.jsonc`):
+`main` → `frontend/.output/server/index.mjs`, assets → `frontend/.output/public`.
+
+**Настройки проекта в Cloudflare (Workers Builds):**
+
+| Параметр            | Значение              |
+| ------------------- | --------------------- |
+| Root directory      | `/`                   |
+| Build command       | `npm run build`       |
+| Deploy command      | `npx wrangler deploy` |
+| Node.js             | 24                    |
+
+Локальная проверка без деплоя:
+
+```bash
+XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler deploy --dry-run
+```
+
+(`XDG_CONFIG_HOME` внутри проекта — потому что `~/Library/Preferences/.wrangler`
+на macOS бывает недоступен для записи; в бэкенде это делает `backend/src/env.ts`.)
+
 ## Переменные окружения
+
+**Worker (production), задаётся в дашборде Cloudflare или в `wrangler.jsonc`:**
+
+| Переменная             | По умолчанию | Назначение                                                    |
+| ---------------------- | ------------ | ------------------------------------------------------------- |
+| `NUXT_PUBLIC_API_BASE` | `""`         | абсолютный URL бэкенда; пусто — same-origin (нужен прокси)     |
 
 **backend/.env** (шаблон — `backend/.env.example`):
 
@@ -34,9 +73,15 @@ npm run dev:back           # только Fastify (http://localhost:3001)
 | `CORS_ORIGIN`    | `http://localhost:3000` | разрешённый источник для CORS      |
 | `PORT`           | `3001`                  | порт API                           |
 
-Фронтенду ключ не нужен: клиент ходит в `/api/**`, а Nuxt проксирует эти
-запросы на бэкенд (`routeRules` в `frontend/nuxt.config.ts`). Порт бэкенда
-переопределяется переменной `BACKEND_PORT` при запуске Nuxt.
+В dev фронтенду ничего не нужно: клиент ходит в `/api/**`, а Nuxt проксирует
+эти запросы на бэкенд (`routeRules` включается только вне production).
+Порт бэкенда переопределяется переменной `BACKEND_PORT`.
+
+> **Важно:** Fastify-бэкенд с `getPlatformProxy()` **на Cloudflare Workers не
+> запускается** — это Node-процесс. Пока у него нет отдельного хоста, в проде
+> запросы к `/api/**` будут отвечать `404`. Варианты: поднять бэкенд на любом
+> Node-хосте (VPS, Fly.io, Railway) и указать его в `NUXT_PUBLIC_API_BASE`, либо
+> переписать API на Workers-entry (Hono + биндинг D1 вместо `getPlatformProxy`).
 
 ## API
 

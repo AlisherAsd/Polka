@@ -1,0 +1,23 @@
+// Workerd-конфиг для фронтенда (Nuxt SSR на Cloudflare Workers).
+// Один репозиторий — два приложения: frontend/ (этот воркер) и backend/ (Fastify).
+// D1-конфиг бэкенда живёт отдельно в backend/wrangler.toml и здесь не нужен.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "polka",
+  "main": "frontend/.output/server/index.mjs",
+  "compatibility_date": "2026-11-01",
+  // Nitro требует nodejs_als (AsyncLocalStorage); nodejs_compatv2 включает его и остальные node-API.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "frontend/.output/public",
+    "binding": "ASSETS",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  // Публичный адрес бэкенда (Fastify). Без него фронт ходит на тот же origin,
+  // где /api/** никто не обслуживает.
+  "vars": {
+    "NUXT_PUBLIC_API_BASE": "",
+  },
+}

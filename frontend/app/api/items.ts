@@ -4,6 +4,20 @@
  */
 import type { Card, CardType } from '~/types/card'
 
+/**
+ * База для запросов к API. Пустая строка — тот же origin (dev: прокси Nuxt;
+ * прод: бэкенд за тем же доменом). Иначе — абсолютный адрес из NUXT_PUBLIC_API_BASE.
+ *
+ * База приходит параметром из composable: `useRuntimeConfig()` доступен только
+ * внутри Nuxt-контекста, а этот модуль вызывается и из обычных функций.
+ */
+export type ApiBase = string
+
+/** Собирает URL запроса из базы и пути. */
+function apiUrl(base: ApiBase, path: string): string {
+  return `${String(base ?? '').replace(/\/+$/, '')}${path}`
+}
+
 /** Ответ `GET /api/items`. */
 interface ItemsResponse {
   items: Card[]
@@ -29,8 +43,8 @@ export interface CreateItemPayload {
 export type UpdateItemPayload = CreateItemPayload
 
 /** Список карточек (новые первыми). */
-export async function fetchItems(limit = 200): Promise<Card[]> {
-  const res = await $fetch<ItemsResponse>('/api/items', {
+export async function fetchItems(base: ApiBase, limit = 200): Promise<Card[]> {
+  const res = await $fetch<ItemsResponse>(apiUrl(base, '/api/items'), {
     query: { limit },
   })
 
@@ -38,8 +52,8 @@ export async function fetchItems(limit = 200): Promise<Card[]> {
 }
 
 /** Создаёт карточку и возвращает её серверное представление (с id и createdAt из БД). */
-export async function createItem(payload: CreateItemPayload): Promise<Card> {
-  const res = await $fetch<ItemResponse>('/api/items', {
+export async function createItem(base: ApiBase, payload: CreateItemPayload): Promise<Card> {
+  const res = await $fetch<ItemResponse>(apiUrl(base, '/api/items'), {
     method: 'POST',
     body: payload,
   })
@@ -49,10 +63,11 @@ export async function createItem(payload: CreateItemPayload): Promise<Card> {
 
 /** Частично обновляет карточку (например, сохраняет саммари) и возвращает её. */
 export async function updateItem(
+  base: ApiBase,
   id: string,
   patch: UpdateItemPayload,
 ): Promise<Card> {
-  const res = await $fetch<ItemResponse>(`/api/items/${encodeURIComponent(id)}`, {
+  const res = await $fetch<ItemResponse>(apiUrl(base, `/api/items/${encodeURIComponent(id)}`), {
     method: 'PATCH',
     body: patch,
   })
@@ -61,8 +76,8 @@ export async function updateItem(
 }
 
 /** Удаляет карточку. Бросает при не-2xx. */
-export async function deleteItem(id: string): Promise<void> {
-  await $fetch(`/api/items/${encodeURIComponent(id)}`, {
+export async function deleteItem(base: ApiBase, id: string): Promise<void> {
+  await $fetch(apiUrl(base, `/api/items/${encodeURIComponent(id)}`), {
     method: 'DELETE',
   })
 }

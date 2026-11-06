@@ -4,13 +4,19 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n front,back -c cyan,magenta \"npm:dev:front\" \"npm:dev:back\"",
-    "dev:front": "npm --prefix frontend run dev",
-    "dev:back": "npm --prefix backend run dev",
-    "build": "npm --prefix frontend run build",
-    "typecheck": "npm --prefix frontend run typecheck && npm --prefix backend run typecheck",
-    "install:all": "npm install --prefix frontend && npm install --prefix backend"
+    "dev:front": "npm --workspace polka-frontend run dev",
+    "dev:back": "npm --workspace polka-backend run dev",
+    "build": "npm --workspace polka-frontend run build",
+    "deploy": "wrangler deploy",
+    "typecheck": "npm --workspace polka-frontend run typecheck && npm --workspace polka-backend run typecheck",
+    "d1:migrate": "npm --workspace polka-backend run d1:migrate"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
-  }
+    "concurrently": "^9.1.2",
+    "wrangler": "^4.158.0"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
 }

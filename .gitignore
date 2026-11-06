@@ -32,3 +32,7 @@ ref/
 
 # Backend env
 backend/.env
+
+# Локальное состояние wrangler (мультирекв по воркспейсам)
+.wrangler/
+frontend/.wrangler/

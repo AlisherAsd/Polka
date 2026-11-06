@@ -15,6 +15,9 @@ const props = defineProps<{
 const { open, closeModal } = useSummarizeModal()
 const { cards: stateCards, replaceCard } = useCards()
 
+/** Публичная база API из runtimeConfig (читается здесь, в Nuxt-контексте). */
+const apiBase = String(useRuntimeConfig().public.apiBase ?? '')
+
 const prompt = ref<string>('Сделай краткое саммари этих материалов.')
 const answer = ref<string>('')
 const pending = ref<boolean>(false)
@@ -36,7 +39,7 @@ async function persistSummary(cards: readonly Card[], text: string): Promise<voi
 
   await Promise.allSettled(
     targets.map(async (card) => {
-      const updated = await updateItem(card.id, { summary })
+      const updated = await updateItem(apiBase, card.id, { summary })
 
       // Обновляем локальное состояние — без перезагрузки списка.
       replaceCard(updated)

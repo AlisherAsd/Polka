@@ -11,11 +11,28 @@ export default defineNuxtConfig({
   // поэтому собственный `vite.plugins: [tailwindcss()]` больше не нужен.
   modules: ["@nuxt/ui"],
 
-  // Бэкенд (Fastify) живёт отдельным приложением в ../backend.
-  // Порог задаётся переменной BACKEND_PORT, по умолчанию 3001.
+  // Сборка под Cloudflare Workers (preset nitro). Локальный `nuxt dev`
+  // этот параметр игнорирует, поэтому dev остаётся прежним.
+  nitro: {
+    preset: env.NITRO_PRESET ?? "cloudflare_module",
+  },
+
+  // Адрес бэкенда (Fastify). Пустая строка = тот же origin: в dev запросы
+  // идут на /api/** и их проксирует Nuxt, а на проде бэкенд должен быть
+  // указан полным адресом через NUXT_PUBLIC_API_BASE.
+  runtimeConfig: {
+    public: {
+      apiBase: "",
+    },
+  },
+
+  // Прокси на локальный бэкенд нужен только в dev: на Workers его нет.
   routeRules: {
     "/api/**": {
-      proxy: `http://localhost:${env.BACKEND_PORT ?? 3001}/api/**`,
+      proxy:
+        env.NODE_ENV === "production"
+          ? undefined
+          : `http://localhost:${env.BACKEND_PORT ?? 3001}/api/**`,
     },
   },
 

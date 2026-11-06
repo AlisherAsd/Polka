@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import type { Card, RawLink } from "~/types/card";
 import { normalizeUrl, parseLink } from "~/utils/parsers";
 import { createItem, deleteItem, fetchItems } from "~/api/items";
+import type { ApiBase } from "~/api/items";
 
 /** Состояние приложения в модульном синглтоне. */
 interface CardsState {
@@ -49,6 +50,15 @@ function errorMessage(error: unknown, fallback: string): string {
 export function useCards() {
   const state = ensureState();
 
+  /**
+   * Адрес бэкенда читаем только внутри Nuxt-контекста (в setup composable)
+   * и дальше передаём в хелперы параметром: в фоновых промисах контекста уже нет.
+   */
+  const apiBase: ApiBase =
+    typeof useRuntimeConfig === "function"
+      ? String(useRuntimeConfig().public.apiBase ?? "")
+      : "";
+
   const cards = readonly(state.cards);
   const loading = readonly(state.loading);
   const error = readonly(state.error);
@@ -72,7 +82,7 @@ export function useCards() {
     state.error.value = null;
 
     try {
-      state.cards.value = await fetchItems(200);
+      state.cards.value = await fetchItems(apiBase, 200);
     } catch (err) {
       state.error.value = errorMessage(err, "Не удалось загрузить карточки");
     } finally {
@@ -123,7 +133,7 @@ export function useCards() {
       // Локально разобранные карточки на сервере заменяются серверными (с id из БД).
       const saved = await Promise.allSettled(
         parsed.map((card) =>
-          createItem({
+          createItem(apiBase, {
             type: card.type,
             url: card.url,
             title: card.title,
@@ -173,7 +183,7 @@ export function useCards() {
       const card = await parseLink(normalized);
 
       try {
-        const saved = await createItem({
+        const saved = await createItem(apiBase, {
           type: card.type,
           url: card.url,
           title: card.title,
@@ -210,7 +220,7 @@ export function useCards() {
 
     state.cards.value = snapshot.filter((card) => !removed.has(card.id));
 
-    void Promise.allSettled(backup.map((card) => deleteItem(card.id))).then(
+    void Promise.allSettled(backup.map((card) => deleteItem(apiBase, card.id))).then(
       (results) => {
         if (results.every((result) => result.status === "fulfilled")) {
           return;
