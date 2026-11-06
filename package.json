@@ -3,21 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n front,back -c cyan,magenta \"npm:dev:front\" \"npm:dev:back\"",
-    "dev:front": "npm --workspace polka-frontend run dev",
-    "dev:back": "npm --workspace polka-backend run dev",
+    "dev": "XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npm --workspace polka-frontend run dev",
     "build": "npm --workspace polka-frontend run build",
     "deploy": "wrangler deploy",
-    "typecheck": "npm --workspace polka-frontend run typecheck && npm --workspace polka-backend run typecheck",
-    "d1:migrate": "npm --workspace polka-backend run d1:migrate",
+    "typecheck": "npm --workspace polka-frontend run typecheck",
+    "d1:migrate": "wrangler d1 migrations apply polka-db --local",
     "d1:migrate:remote": "wrangler d1 migrations apply polka-db --remote"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
     "wrangler": "^4.158.0"
   },
   "workspaces": [
-    "frontend",
-    "backend"
+    "frontend"
   ]
 }

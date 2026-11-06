@@ -1,35 +1,34 @@
 # polka
 
-Монорепозиторий на npm workspaces, два приложения:
+Один Cloudflare Worker: Nuxt SSR и `/api/**` на Nitro-хендлерах, база — D1.
+Отдельного бэкенд-сервиса нет: Fastify удалён после переезда на Nitro.
 
 ```
-frontend/   polka-frontend — Nuxt 4 + @nuxt/ui (Vue 3); UI и API (server/api, Nitro)
-backend/    polka-backend  — Fastify 5 (ESM), только для локальной разработки
-wrangler.jsonc              конфиг воркера: Nuxt SSR + /api + биндинг D1 (корень)
+frontend/       Nuxt 4 + @nuxt/ui: UI и API (server/api, Nitro), D1-биндинги
+frontend/migrations/  миграции D1 (единый источник правды)
+wrangler.jsonc  конфиг воркера: Nuxt SSR + /api + биндинг D1
 ```
 
 ## Установка
 
 ```bash
-npm install                # один раз в корне: ставит оба воркспейса
+npm install                # из корня
 ```
 
-Зависимости обоих приложений поднимаются в корневой `node_modules`,
-lock-файл один — `package-lock.json` в корне.
+Зависимости поднимаются в корневой `node_modules`, lock-файл один —
+`package-lock.json` в корне.
 
 ## Запуск
 
 ```bash
-npm run dev                # frontend :3000 + backend :3001 вместе
-npm run dev:front          # только Nuxt  (http://localhost:3000)
-npm run dev:back           # только Fastify (http://localhost:3001)
+npm run dev                # Nuxt dev на http://localhost:3000 (API и UI вместе)
 ```
 
-В dev клиент ходит в `/api/**`, Nuxt проксирует запросы на Fastify (`:3001`),
-а Fastify читает локальную D1. В проде те же эндпоинты обслуживает сам воркер
-через Nitro-хендлеры `frontend/server/api/**` с биндингом `DB`.
+В dev Nitro включает cloudflare-dev эмуляцию: `getPlatformProxy()` из wrangler
+поднимает биндинги (D1) и кладёт их в `event.context.cloudflare`, так что те же
+Nitro-хендлеры `frontend/server/api/**` работают локально без отдельного сервера.
 
-Проверка API: `curl http://localhost:3001/health` → `{"ok":true}`.
+Проверка API: `curl http://localhost:3000/api/items` → `{"items":[]}`.
 
 ## Сборка и деплой
 
@@ -59,7 +58,8 @@ XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler deploy --dry-run
 ```
 
 (`XDG_CONFIG_HOME` внутри проекта — потому что `~/Library/Preferences/.wrangler`
-на macOS бывает недоступен для записи; в бэкенде это делает `backend/src/env.ts`.)
+на macOS бывает недоступен для записи; `npm run dev` и `nuxt.config.ts` уводят
+его внутрь проекта автоматически.)
 
 ## Переменные окружения
 
@@ -70,25 +70,18 @@ XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler deploy --dry-run
 | `NUXT_PUBLIC_API_BASE` | `""`         | пусто — API в том же воркере (same-origin)                    |
 | `OPENROUTER_KEY` (secret) | —        | `npx wrangler secret put OPENROUTER_KEY`                      |
 
-**backend/.env** (шаблон — `backend/.env.example`):
+**Локально (ключ модели):** `frontend/.env` с `OPENROUTER_KEY=` — Nitro читает
+его как env при `npm run dev`.
 
-| Переменная       | По умолчанию            | Назначение                         |
-| ---------------- | ----------------------- | ---------------------------------- |
-| `OPENROUTER_KEY` | —                       | ключ OpenRouter (обязателен)       |
-| `CORS_ORIGIN`    | `http://localhost:3000` | разрешённый источник для CORS      |
-| `PORT`           | `3001`                  | порт API                           |
+Клиент всегда ходит на `/api/**` того же origin: в dev его обслуживают те же
+Nitro-хендлеры через cloudflare-dev эмуляцию, в проде — воркер с биндингом `DB`.
 
-В dev фронтенду ничего не нужно: клиент ходит в `/api/**`, а Nuxt проксирует
-эти запросы на Fastify (`routeRules` включается только вне production).
-Порт бэкенда переопределяется переменной `BACKEND_PORT`.
-
-> Fastify-бэкенд с `getPlatformProxy()` на Workers не запускается — он остаётся
-> инструментом локальной разработки. Продовый API живёт в `frontend/server/api`
-> (Nitro, биндинг D1), поэтому отдельный хостинг бэкенда больше не нужен.
+> На macOS wrangler/miniflare кладут служебные файлы в
+> `~/Library/Preferences/.wrangler`, куда часто нет прав (EPERM). `npm run dev`
+> и `nuxt.config.ts` уводят их в `.wrangler/config/xdg` внутри проекта.
 
 ## API
 
-- `GET  /health` → `{ ok: true }`
 - `POST /api/ask` — `{ prompt }` → `{ text }`; история чата хранится в памяти инстанса
 - `POST /api/summarize` — `{ prompt?, cards: [{ title, authorName, description, url }] }` → `{ text }`
 - `GET  /api/items?limit=100` → `{ items }` — карточки, новые первыми (`limit` 1..500)
@@ -126,17 +119,13 @@ interface Card {
 SQLite-состояния wrangler — платный аккаунт не нужен.
 
 ```bash
-cd backend
 npm run d1:migrate        # wrangler d1 migrations apply polka-db --local
 ```
 
-- Миграции: `backend/migrations/*.sql` (единый источник правды для dev и воркера),
-  биндинг `DB` — в `backend/wrangler.toml` и в корневом `wrangler.jsonc`.
-- Локальное состояние: `backend/.wrangler/state/v3/d1` (Fastify) и
-  `.wrangler/state/v3/d1` (воркер; в git не попадают).
+- Миграции: `frontend/migrations/*.sql`, биндинг `DB` — в корневом `wrangler.jsonc`.
+- Локальное состояние: `.wrangler/state/v3/d1` — одно и то же для `npm run dev`
+  (cloudflare-dev) и `wrangler dev`; в git не попадает.
 - Посмотреть данные: `npx wrangler d1 execute polka-db --local --command "select * from items"`.
-- Fastify ходит в D1 через `getPlatformProxy()` из `wrangler` (`backend/src/lib/db.ts`),
-  поэтому код запросов не меняется при переходе на remote.
 - Для production:
   ```bash
   npx wrangler d1 create polka-db              # взять database_id и вписать в wrangler.jsonc
@@ -153,6 +142,6 @@ npm run d1:migrate        # wrangler d1 migrations apply polka-db --local
 | ------------------- | --------------------------------- |
 | `npm run build`            | production-сборка Nuxt            |
 | `npm run deploy`           | `wrangler deploy` из корня        |
-| `npm run d1:migrate`       | миграции в локальную D1 (Fastify) |
+| `npm run d1:migrate`       | миграции в локальную D1           |
 | `npm run d1:migrate:remote`| миграции в боевую D1              |
-| `npm run typecheck`        | `nuxt typecheck` + `tsc --noEmit` |
+| `npm run typecheck`        | `nuxt typecheck`                  |

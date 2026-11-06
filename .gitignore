@@ -36,3 +36,7 @@ backend/.env
 # Локальное состояние wrangler (мультирекв по воркспейсам)
 .wrangler/
 frontend/.wrangler/
+
+# Локальное состояние и конфиг wrangler/miniflare
+.wrangler/
+frontend/.wrangler/

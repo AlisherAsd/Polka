@@ -3,6 +3,14 @@
 // В `nuxt.config.ts` нет типов Node.js, поэтому читаем env без `process`.
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 
+// wrangler/miniflare пишут служебные файлы в ~/Library/Preferences/.wrangler,
+// куда на macOS нет прав (EPERM). Уводим их конфиг-каталог внутрь проекта.
+const nodeProcess = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+
+if (nodeProcess?.env && !nodeProcess.env.XDG_CONFIG_HOME && nodeProcess.env.PWD) {
+  nodeProcess.env.XDG_CONFIG_HOME = `${nodeProcess.env.PWD}/.wrangler/config/xdg`
+}
+
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
@@ -13,26 +21,25 @@ export default defineNuxtConfig({
 
   // Сборка под Cloudflare Workers (preset nitro). Локальный `nuxt dev`
   // этот параметр игнорирует, поэтому dev остаётся прежним.
+  // В dev Nitro сам поднимает getPlatformProxy() из wrangler и кладёт биндинги
+  // (D1) в event.context.cloudflare — API можно проверять без Fastify.
   nitro: {
     preset: env.NITRO_PRESET ?? "cloudflare_module",
-  },
-
-  // Адрес бэкенда (Fastify). Пустая строка = тот же origin: в dev запросы
-  // идут на /api/** и их проксирует Nuxt, а на проде бэкенд должен быть
-  // указан полным адресом через NUXT_PUBLIC_API_BASE.
-  runtimeConfig: {
-    public: {
-      apiBase: "",
+    cloudflare: {
+      dev: {
+        // Конфиг лежит в корне монорепы, а не рядом с frontend/.
+        configPath: "../wrangler.jsonc",
+        // Общее состояние с `wrangler d1 ... --local`: миграции и данные одни.
+        persistDir: "../.wrangler/state/v3",
+      },
     },
   },
 
-  // Прокси на локальный бэкенд нужен только в dev: на Workers его нет.
-  routeRules: {
-    "/api/**": {
-      proxy:
-        env.NODE_ENV === "production"
-          ? undefined
-          : `http://localhost:${env.BACKEND_PORT ?? 3001}/api/**`,
+  // База API. Пустая строка = тот же origin: и в dev, и на проде /api/**
+  // обслуживают Nitro-хендлеры этого же приложения.
+  runtimeConfig: {
+    public: {
+      apiBase: "",
     },
   },
 

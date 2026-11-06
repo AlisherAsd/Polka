@@ -15,7 +15,9 @@ export interface ChatMessage {
 function requireKey(event: H3Event): string {
   const envKey = (event.context.cloudflare as { env?: { OPENROUTER_KEY?: string } } | undefined)
     ?.env?.OPENROUTER_KEY
-  const key = String(envKey || process.env.OPENROUTER_KEY || '')
+  const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+    ?.env?.OPENROUTER_KEY
+  const key = String(envKey || nodeEnv || '')
 
   if (!key) {
     throw createError({ statusCode: 500, message: 'Ключ API не найден' })
