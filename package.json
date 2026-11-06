@@ -9,7 +9,8 @@
     "build": "npm --workspace polka-frontend run build",
     "deploy": "wrangler deploy",
     "typecheck": "npm --workspace polka-frontend run typecheck && npm --workspace polka-backend run typecheck",
-    "d1:migrate": "npm --workspace polka-backend run d1:migrate"
+    "d1:migrate": "npm --workspace polka-backend run d1:migrate",
+    "d1:migrate:remote": "wrangler d1 migrations apply polka-db --remote"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

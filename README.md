@@ -3,9 +3,9 @@
 Монорепозиторий на npm workspaces, два приложения:
 
 ```
-frontend/   polka-frontend — Nuxt 4 + @nuxt/ui (Vue 3), деплоится на Cloudflare Workers
-backend/    polka-backend  — Fastify 5 + TypeScript (ESM), API и Cloudflare D1
-wrangler.jsonc              worker-конфиг фронтенда (корень репозитория)
+frontend/   polka-frontend — Nuxt 4 + @nuxt/ui (Vue 3); UI и API (server/api, Nitro)
+backend/    polka-backend  — Fastify 5 (ESM), только для локальной разработки
+wrangler.jsonc              конфиг воркера: Nuxt SSR + /api + биндинг D1 (корень)
 ```
 
 ## Установка
@@ -24,6 +24,10 @@ npm run dev                # frontend :3000 + backend :3001 вместе
 npm run dev:front          # только Nuxt  (http://localhost:3000)
 npm run dev:back           # только Fastify (http://localhost:3001)
 ```
+
+В dev клиент ходит в `/api/**`, Nuxt проксирует запросы на Fastify (`:3001`),
+а Fastify читает локальную D1. В проде те же эндпоинты обслуживает сам воркер
+через Nitro-хендлеры `frontend/server/api/**` с биндингом `DB`.
 
 Проверка API: `curl http://localhost:3001/health` → `{"ok":true}`.
 
@@ -63,7 +67,8 @@ XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler deploy --dry-run
 
 | Переменная             | По умолчанию | Назначение                                                    |
 | ---------------------- | ------------ | ------------------------------------------------------------- |
-| `NUXT_PUBLIC_API_BASE` | `""`         | абсолютный URL бэкенда; пусто — same-origin (нужен прокси)     |
+| `NUXT_PUBLIC_API_BASE` | `""`         | пусто — API в том же воркере (same-origin)                    |
+| `OPENROUTER_KEY` (secret) | —        | `npx wrangler secret put OPENROUTER_KEY`                      |
 
 **backend/.env** (шаблон — `backend/.env.example`):
 
@@ -74,14 +79,12 @@ XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler deploy --dry-run
 | `PORT`           | `3001`                  | порт API                           |
 
 В dev фронтенду ничего не нужно: клиент ходит в `/api/**`, а Nuxt проксирует
-эти запросы на бэкенд (`routeRules` включается только вне production).
+эти запросы на Fastify (`routeRules` включается только вне production).
 Порт бэкенда переопределяется переменной `BACKEND_PORT`.
 
-> **Важно:** Fastify-бэкенд с `getPlatformProxy()` **на Cloudflare Workers не
-> запускается** — это Node-процесс. Пока у него нет отдельного хоста, в проде
-> запросы к `/api/**` будут отвечать `404`. Варианты: поднять бэкенд на любом
-> Node-хосте (VPS, Fly.io, Railway) и указать его в `NUXT_PUBLIC_API_BASE`, либо
-> переписать API на Workers-entry (Hono + биндинг D1 вместо `getPlatformProxy`).
+> Fastify-бэкенд с `getPlatformProxy()` на Workers не запускается — он остаётся
+> инструментом локальной разработки. Продовый API живёт в `frontend/server/api`
+> (Nitro, биндинг D1), поэтому отдельный хостинг бэкенда больше не нужен.
 
 ## API
 
@@ -117,7 +120,7 @@ interface Card {
 
 Ошибки возвращаются как `{ message }` со статусом 400/404/500/502.
 
-## D1 (Cloudflare) локально
+## D1 (Cloudflare)
 
 Карточки хранятся в Cloudflare D1. Для разработки достаточно локального
 SQLite-состояния wrangler — платный аккаунт не нужен.
@@ -127,17 +130,29 @@ cd backend
 npm run d1:migrate        # wrangler d1 migrations apply polka-db --local
 ```
 
-- Миграции: `backend/migrations/*.sql`, биндинг `DB` — в `backend/wrangler.toml`.
-- Локальное состояние: `backend/.wrangler/state/v3/d1` (в git не попадает).
+- Миграции: `backend/migrations/*.sql` (единый источник правды для dev и воркера),
+  биндинг `DB` — в `backend/wrangler.toml` и в корневом `wrangler.jsonc`.
+- Локальное состояние: `backend/.wrangler/state/v3/d1` (Fastify) и
+  `.wrangler/state/v3/d1` (воркер; в git не попадают).
 - Посмотреть данные: `npx wrangler d1 execute polka-db --local --command "select * from items"`.
 - Fastify ходит в D1 через `getPlatformProxy()` из `wrangler` (`backend/src/lib/db.ts`),
   поэтому код запросов не меняется при переходе на remote.
-- Для production: реальный `database_id` в `wrangler.toml` (из `npx wrangler d1 create polka-db`),
-  `--remote` для миграций и деплой на Cloudflare Workers с биндингом `DB`.
+- Для production:
+  ```bash
+  npx wrangler d1 create polka-db              # взять database_id и вписать в wrangler.jsonc
+  npm run d1:migrate:remote                    # миграции в боевую базу
+  npx wrangler secret put OPENROUTER_KEY       # ключ модели
+  npm run deploy
+  ```
+- Локальный прогон воркера: `XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler dev --local`
+  (миграции в локальную D1 воркера: `npx wrangler d1 migrations apply polka-db --local`).
 
 ## Скрипты
 
 | Команда             | Что делает                        |
 | ------------------- | --------------------------------- |
-| `npm run build`     | production-сборка Nuxt            |
-| `npm run typecheck` | `nuxt typecheck` + `tsc --noEmit` |
+| `npm run build`            | production-сборка Nuxt            |
+| `npm run deploy`           | `wrangler deploy` из корня        |
+| `npm run d1:migrate`       | миграции в локальную D1 (Fastify) |
+| `npm run d1:migrate:remote`| миграции в боевую D1              |
+| `npm run typecheck`        | `nuxt typecheck` + `tsc --noEmit` |
