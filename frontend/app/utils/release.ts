@@ -16,5 +16,5 @@ export const RELEASE = {
   date: '2026-11-07',
 } as const
 
-//** Готовая строка версии: `1.38`. */
+/** Готовая строка версии: `1.38`. */
 export const APP_VERSION = `1.${RELEASE.commits}`
