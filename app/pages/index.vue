@@ -13,6 +13,8 @@ onMounted(() => {
   init()
 })
 
+const { openModal: openAddModal } = useAddModal()
+
 function handleDelete(id: string): void {
   removeCard(id)
 }
@@ -65,17 +67,13 @@ function handleDelete(id: string): void {
     />
 
     <!-- Пустое состояние -->
-    <div
+    <EmptyState
       v-else-if="isEmpty"
-      class="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-line-soft bg-surface/60 px-6 py-16 text-center"
-    >
-      <span class="text-3xl" aria-hidden="true">◌</span>
-      <h2 class="text-base font-semibold text-ink">Пока пусто</h2>
-      <p class="max-w-sm text-sm text-dim">
-        Вставьте ссылку на видео YouTube или TikTok, пост в Telegram или статью — она появится
-        здесь и сохранится в браузере.
-      </p>
-    </div>
+      title="Пока пусто"
+      description="Сохраните видео с YouTube или TikTok, пост в Telegram или статью — они появятся здесь."
+      action-label="Добавить ссылку"
+      @action="openAddModal"
+    />
 
     <SelectionBar />
   </section>

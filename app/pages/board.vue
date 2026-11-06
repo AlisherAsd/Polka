@@ -276,9 +276,12 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="relative min-h-0 flex-1 overflow-auto bg-app">
-      <p v-if="isEmpty" class="p-8 text-sm text-mute">
-        На доске пока пусто — добавьте ссылки на главной.
-      </p>
+      <EmptyState
+        v-if="isEmpty"
+        title="На доске пока пусто"
+        description="Добавьте ссылки на главной — они появятся здесь, чтобы раскладывать их по холсту."
+        class="mx-auto max-w-md"
+      />
 
       <!--
         Холст фиксированного логического размера: при увеличении зума
