@@ -13,15 +13,8 @@ const { toggleMenu } = useMobileMenu()
   <header
     class="flex h-14 min-w-0 items-center justify-between gap-2 border-b border-line bg-surface px-3 sm:hidden"
   >
-    <!-- Слева: лого (то же, что в сайдбаре) -->
-    <NuxtLink to="/" class="shrink-0" aria-label="Полка — на главную">
-      <span
-        class="block text-[15px] font-bold uppercase leading-none tracking-[-0.12em] text-black"
-        style="transform: scaleY(3)"
-      >
-        полка
-      </span>
-    </NuxtLink>
+    <!-- Слева: лого (то же, что в сайдбаре) — с версией в поповере -->
+    <AppLogo />
 
     <!-- Справа: файлы + меню -->
     <div class="flex shrink-0 items-center gap-1">
