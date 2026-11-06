@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Card } from '~/types/card'
 
 /**
@@ -46,13 +46,17 @@ function layoutCards(list: readonly Card[]): void {
 /** Шаг по вертикали: чуть больше карточки, чтобы было где выделять пустотой. */
 const CARD_ROW_PITCH = CARD_HEIGHT + ROW_GAP
 
-const { init: initFiles } = useFiles()
-
+/**
+ * Данные грузятся плагином при старте приложения (`plugins/bootstrap.client.ts`).
+ * Здесь только перекладываем карточки на доску — и в `onMounted` (если данные
+ * уже есть), и по `watch` (если ответ придёт позже).
+ */
 onMounted(() => {
-  // Папки и заметки — отдельная загрузка; без неё дерево пустое после перезагрузки.
-  initFiles()
-  init()
   layoutCards(cards.value)
+})
+
+watch(cards, (list) => {
+  layoutCards(list)
 })
 
 const isEmpty = computed<boolean>(() => placed.value.length === 0)

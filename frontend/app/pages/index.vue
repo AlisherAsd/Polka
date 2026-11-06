@@ -1,21 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 
-const { cards, loading, error, isEmpty, count, selectedIds, toggleSelection, removeCard, init } =
-  useCards()
+const { cards, loading, error, isEmpty, count, selectedIds, toggleSelection, removeCard } = useCards()
 
 /** Пока идёт хотя бы один запрос к внешнему источнику — показываем скелетоны. */
 const showSkeletons = computed<boolean>(() => loading.value)
 const skeletonCount = 4
 
-const { init: initFiles } = useFiles()
-
-onMounted(() => {
-  // Папки и заметки — отдельная загрузка; без неё дерево пустое после перезагрузки.
-  initFiles()
-  // Карточки грузятся с бэкенда только здесь, на клиенте (SSR рендерит пустой список).
-  init()
-})
+// Карточки и файлы грузит плагин `plugins/bootstrap.client.ts` при старте приложения.
 
 const { openModal: openAddModal } = useAddModal()
 

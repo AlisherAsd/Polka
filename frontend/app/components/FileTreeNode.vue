@@ -19,6 +19,8 @@ const emit = defineEmits<{
 
 const { closeMenu } = useMobileMenu()
 const { closeSidePanel } = useSidePanel()
+const { isAuth } = useAuth()
+const { openModal: openAuthModal } = useAuthModal()
 
 /** Переход в заметку. На телефоне заодно закрываем меню и панель. */
 async function openNote(noteId: string): Promise<void> {
@@ -54,6 +56,14 @@ const icon = computed<string>(() => {
 const indent = computed<string>(() => `${props.depth * 12}px`)
 
 function handleClick(): void {
+  // Раньше клик по папке без входа молча ничего не делал — на телефоне это
+  // выглядело как «нажатие не срабатывает». Теперь открываем вход.
+  if (isFolder.value && !isAuth.value) {
+    openAuthModal()
+
+    return
+  }
+
   if (isFolder.value) {
     emit('toggle', props.node.id)
 
@@ -68,28 +78,29 @@ function handleClick(): void {
 
 <template>
   <li class="min-w-0">
-    <UButton
+    <!--
+      Собственная кнопка вместо `UButton`: на телефоне шторка меню перехватывает
+      события указателя, и клик по папке не доходил. Обработчик — нативный.
+    -->
+    <button
       type="button"
-      color="neutral"
-      variant="ghost"
-      size="sm"
-      :icon="icon"
-      :label="node.name"
-      class="w-full justify-start rounded-lg"
+      class="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink transition-colors hover:bg-app focus-visible:bg-app"
       :style="{ paddingLeft: indent }"
       :title="node.name"
       :aria-expanded="isFolder ? isOpen : undefined"
-      @click="handleClick"
+      @click.stop="handleClick"
     >
-      <template v-if="isFolder" #trailing>
-        <UIcon
-          v-if="hasChildren"
-          name="i-lucide-chevron-right"
-          class="size-4 text-mute transition-transform"
-          :class="isOpen ? 'rotate-90' : 'rotate-0'"
-        />
-      </template>
-    </UButton>
+      <UIcon :name="icon" class="size-4 shrink-0 text-mute" />
+
+      <span class="truncate">{{ node.name }}</span>
+
+      <UIcon
+        v-if="isFolder && hasChildren"
+        name="i-lucide-chevron-right"
+        class="ml-auto size-4 shrink-0 text-mute transition-transform"
+        :class="isOpen ? 'rotate-90' : 'rotate-0'"
+      />
+    </button>
 
     <ul v-if="isFolder && isOpen && hasChildren" class="flex flex-col gap-0.5">
       <FileTreeNode

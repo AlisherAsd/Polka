@@ -7,18 +7,11 @@ import { computed, onMounted, ref } from 'vue'
  */
 const { tree, error, init } = useFiles()
 
-/** Раскрытые папки дерева: корень и все папки верхнего уровня видны сразу. */
-const expanded = computed<Record<string, boolean>>(() => {
-  const state: Record<string, boolean> = { knowledge: true }
-
-  for (const node of tree.value) {
-    if (node.type === 'folder') {
-      state[node.id] = toggled.value[node.id] ?? true
-    }
-  }
-
-  return state
-})
+/** Раскрытые папки: корень открыт, вложенные — по клику. */
+const expanded = computed<Record<string, boolean>>(() => ({
+  knowledge: true,
+  ...toggled.value,
+}))
 
 /** Ручные переключения пользователя поверх дефолта. */
 const toggled = ref<Record<string, boolean>>({})
@@ -36,7 +29,7 @@ function handleToggle(id: string): void {
     return
   }
 
-  toggled.value = { ...toggled.value, [id]: !(toggled.value[id] ?? true) }
+  toggled.value = { ...toggled.value, [id]: !(toggled.value[id] ?? false) }
 }
 </script>
 
