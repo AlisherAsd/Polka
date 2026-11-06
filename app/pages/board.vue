@@ -49,6 +49,13 @@ onMounted(() => {
 })
 
 const isEmpty = computed<boolean>(() => placed.value.length === 0)
+
+/** Подсказка в шапке: меняется в зависимости от выделения. */
+const hint = computed<string>(() =>
+  selectedIds.value.length > 0
+    ? `выбрано: ${selectedIds.value.length}`
+    : 'перетащите карточку или выделите рамкой',
+)
 const percent = computed<number>(() => Math.round(scale.value * 100))
 
 const selectedCards = computed<Card[]>(() =>
@@ -211,15 +218,17 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="flex min-h-0 w-full flex-1 flex-col">
-    <!-- Шапка: на мобильном переносится в две строки, зум-контролы уходят вниз -->
-    <header class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8">
+    <!--
+      Шапка: на мобильном hint уходит отдельной строкой под зум-контролы,
+      на десктопе всё в одну строку.
+    -->
+    <header
+      class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
+    >
       <h1 class="shrink-0 text-base font-semibold text-ink sm:text-lg">Доска</h1>
-      <span class="min-w-0 truncate text-xs text-mute">
-        {{
-          selectedIds.length > 0
-            ? `выбрано: ${selectedIds.length}`
-            : 'перетащите карточку или выделите рамкой'
-        }}
+
+      <span class="order-last w-full min-w-0 truncate text-xs text-mute sm:order-none sm:w-auto">
+        {{ hint }}
       </span>
 
       <div class="ml-auto flex shrink-0 items-center gap-1">
