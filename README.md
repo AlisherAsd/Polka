@@ -128,13 +128,38 @@ npm run d1:migrate        # wrangler d1 migrations apply polka-db --local
 - Посмотреть данные: `npx wrangler d1 execute polka-db --local --command "select * from items"`.
 - Для production:
   ```bash
-  npx wrangler d1 create polka-db              # взять database_id и вписать в wrangler.jsonc
-  npm run d1:migrate:remote                    # миграции в боевую базу
-  npx wrangler secret put OPENROUTER_KEY       # ключ модели
-  npm run deploy
+  make login            # вход в Cloudflare
+  make db-create        # создаст polka-db и впишет database_id в wrangler.jsonc
+  make migrate-remote   # миграции в боевую базу
+  make secret           # ключ OpenRouter в секреты воркера
+  make ship             # typecheck + сборка + deploy
   ```
 - Локальный прогон воркера: `XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler dev --local`
   (миграции в локальную D1 воркера: `npx wrangler d1 migrations apply polka-db --local`).
+
+## Makefile
+
+Частые команды собраны в `make` (`make help` — список). Везде уже проставлен
+`XDG_CONFIG_HOME` внутрь проекта, поэтому EPERM на macOS не всплывает.
+
+| Команда              | Что делает                                                        |
+| -------------------- | ----------------------------------------------------------------- |
+| `make install`       | зависимости из корня                                              |
+| `make dev`           | dev-сервер :3000 (UI + API + локальная D1)                        |
+| `make check`         | проверка типов                                                    |
+| `make deploy-local`  | сборка + `wrangler deploy --dry-run`                              |
+| `make setup`         | с нуля: install → создать D1 → локальные миграции                 |
+| `make db-create`     | создать D1 (если нет) и вписать `database_id` в `wrangler.jsonc`  |
+| `make db-id`         | показать `database_id` из конфига и из аккаунта                   |
+| `make migrate`       | миграции в локальную D1                                           |
+| `make migrate-remote`| миграции в боевую D1                                              |
+| `make secret`        | `wrangler secret put OPENROUTER_KEY` (интерактивно)               |
+| `make login`         | `wrangler login` (интерактивно)                                   |
+| `make ship`          | typecheck + сборка + `wrangler deploy`                            |
+| `make clean`         | удалить артефакты сборки и локальную D1                           |
+
+Интерактивные шаги (`login`, `secret`) автоматизировать нельзя, они вынесены
+отдельно и вызываются один раз.
 
 ## Скрипты
 
