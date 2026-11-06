@@ -1,22 +1,18 @@
 /**
- * Клиентские обёртки над бэкендом карточек (`/api/items`, Fastify через прокси Nuxt).
+ * Клиентские обёртки над бэкендом карточек (`/api/items`).
  * Вызывать только на клиенте: SSR-разметка должна оставаться пустой.
  */
 import type { Card, CardType } from '~/types/card'
+import { apiUrl, type ApiBase } from './client'
 
 /**
- * База для запросов к API. Пустая строка — тот же origin (dev: прокси Nuxt;
- * прод: бэкенд за тем же доменом). Иначе — абсолютный адрес из NUXT_PUBLIC_API_BASE.
+ * База для запросов к API. Пустая строка — тот же origin, иначе — абсолютный
+ * адрес из `NUXT_PUBLIC_API_BASE` (см. `app/api/client.ts`).
  *
  * База приходит параметром из composable: `useRuntimeConfig()` доступен только
  * внутри Nuxt-контекста, а этот модуль вызывается и из обычных функций.
  */
-export type ApiBase = string
-
-/** Собирает URL запроса из базы и пути. */
-function apiUrl(base: ApiBase, path: string): string {
-  return `${String(base ?? '').replace(/\/+$/, '')}${path}`
-}
+export type { ApiBase }
 
 /** Ответ `GET /api/items`. */
 interface ItemsResponse {

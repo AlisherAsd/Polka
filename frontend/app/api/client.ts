@@ -1,0 +1,48 @@
+/**
+ * Единый клиент API.
+ *
+ * База берётся из `runtimeConfig.public.apiBase` (она же `NUXT_PUBLIC_API_BASE`):
+ * пусто — тот же origin (сайт с Nitro-ручками), иначе — внешний адрес
+ * (`https://api.<домен>` для нативного приложения / отдельного деплоя API).
+ *
+ * Все запросы к бэкенду должны идти через этот модуль: только так натив
+ * и «сайт на другом origin» попадут в нужный хост.
+ */
+
+/** Ответ `$fetch`-ошибки с телом `{ message }`. */
+function messageOf(error: unknown, fallback: string): string {
+  const message = (error as { data?: { message?: unknown } })?.data?.message
+
+  return typeof message === 'string' && message.length > 0 ? message : fallback
+}
+
+/** Читает базу API из Nuxt runtime config (вызывать внутри setup/composable). */
+export function useApiBase(): string {
+  const config = useRuntimeConfig()
+
+  return String(config.public.apiBase ?? '').replace(/\/+$/, '')
+}
+
+/** Собирает абсолютный URL: пустая база — тот же origin. */
+export function apiUrl(base: string, path: string): string {
+  return `${String(base ?? '').replace(/\/+$/, '')}${path}`
+}
+
+type FetchOptions = Record<string, unknown>
+
+/** `$fetch` без типизированных маршрутов: путь приходит динамическим. */
+const rawFetch = $fetch as unknown as (url: string, options?: FetchOptions) => Promise<unknown>
+
+/** База API: пустая строка — тот же origin. */
+export type ApiBase = string
+
+/** Запрос к API относительно базы. */
+export async function apiFetch<T>(
+  base: ApiBase,
+  path: string,
+  options: FetchOptions = {},
+): Promise<T> {
+  return (await rawFetch(apiUrl(base, path), options)) as T
+}
+
+export { messageOf as apiErrorMessage }

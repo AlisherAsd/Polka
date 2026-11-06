@@ -3,6 +3,7 @@
  * Заметка/файл — одна сущность `Note`: название, контент, папка, ссылка на карточку.
  */
 import type { Card } from '~/types/card'
+import { apiFetch, type ApiBase } from './client'
 
 /** Заметка, как её отдаёт бэкенд. */
 export interface Note {
@@ -39,8 +40,11 @@ interface FoldersResponse {
 }
 
 /** Список заметок, при необходимости — по папке или по карточке. */
-export async function fetchNotes(filter: { folderId?: string; itemId?: string } = {}): Promise<Note[]> {
-  const res = await $fetch<NotesResponse>('/api/notes', {
+export async function fetchNotes(
+  base: ApiBase,
+  filter: { folderId?: string; itemId?: string } = {},
+): Promise<Note[]> {
+  const res = await apiFetch<NotesResponse>(base, '/api/notes', {
     query: {
       ...(filter.folderId ? { folderId: filter.folderId } : {}),
       ...(filter.itemId ? { itemId: filter.itemId } : {}),
@@ -51,21 +55,24 @@ export async function fetchNotes(filter: { folderId?: string; itemId?: string } 
 }
 
 /** Одна заметка по id. */
-export async function fetchNote(id: string): Promise<Note> {
-  const res = await $fetch<NoteResponse>(`/api/notes/${encodeURIComponent(id)}`)
+export async function fetchNote(base: ApiBase, id: string): Promise<Note> {
+  const res = await apiFetch<NoteResponse>(base, `/api/notes/${encodeURIComponent(id)}`)
 
   return res.note
 }
 
 /** Создаёт заметку. */
-export async function createNote(payload: {
-  title: string
-  content: string
-  folderId?: string | null
-  itemId?: string | null
-  url?: string | null
-}): Promise<Note> {
-  const res = await $fetch<NoteResponse>('/api/notes', {
+export async function createNote(
+  base: ApiBase,
+  payload: {
+    title: string
+    content: string
+    folderId?: string | null
+    itemId?: string | null
+    url?: string | null
+  },
+): Promise<Note> {
+  const res = await apiFetch<NoteResponse>(base, '/api/notes', {
     method: 'POST',
     body: payload,
   })
@@ -75,10 +82,11 @@ export async function createNote(payload: {
 
 /** Правит заметку (название, контент, папка). */
 export async function updateNote(
+  base: ApiBase,
   id: string,
   patch: { title?: string; content?: string; folderId?: string | null },
 ): Promise<Note> {
-  const res = await $fetch<NoteResponse>(`/api/notes/${encodeURIComponent(id)}`, {
+  const res = await apiFetch<NoteResponse>(base, `/api/notes/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: patch,
   })
@@ -87,13 +95,26 @@ export async function updateNote(
 }
 
 /** Удаляет заметку. */
-export async function deleteNote(id: string): Promise<void> {
-  await $fetch(`/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+export async function deleteNote(base: ApiBase, id: string): Promise<void> {
+  await apiFetch(base, `/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+/** Создаёт папку; `id` нужен, если он приходит с клиента (id узла дерева). */
+export async function createFolder(
+  base: ApiBase,
+  payload: { name: string; id?: string },
+): Promise<Folder> {
+  const res = await apiFetch<{ folder: Folder }>(base, '/api/folders', {
+    method: 'POST',
+    body: payload,
+  })
+
+  return res.folder
 }
 
 /** Папки базы знаний (по умолчанию одна — `ai-voult`). */
-export async function fetchFolders(): Promise<Folder[]> {
-  const res = await $fetch<FoldersResponse>('/api/folders')
+export async function fetchFolders(base: ApiBase): Promise<Folder[]> {
+  const res = await apiFetch<FoldersResponse>(base, '/api/folders')
 
   return Array.isArray(res.folders) ? res.folders : []
 }

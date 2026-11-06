@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import { fetchNote, updateNote } from '~/api/notes'
+import { useApiBase } from '~/api/client'
 import type { Note } from '~/api/notes'
 
 /**
@@ -9,6 +10,7 @@ import type { Note } from '~/api/notes'
  * сохранение уходит в `PATCH /api/notes/:id`.
  */
 const route = useRoute()
+const apiBase = useApiBase()
 
 const noteId = computed<string>(() => String(route.params.id ?? ''))
 
@@ -53,7 +55,7 @@ async function load(): Promise<void> {
   failure.value = ''
 
   try {
-    note.value = await fetchNote(noteId.value)
+    note.value = await fetchNote(apiBase, noteId.value)
     source.value = note.value.content
     title.value = note.value.title
     snapshot = source.value
@@ -89,7 +91,7 @@ async function save(): Promise<void> {
   failure.value = ''
 
   try {
-    note.value = await updateNote(note.value.id, {
+    note.value = await updateNote(apiBase, note.value.id, {
       title: title.value,
       content: source.value,
     })

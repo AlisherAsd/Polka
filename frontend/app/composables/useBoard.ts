@@ -1,6 +1,7 @@
 import { computed, readonly, ref } from 'vue'
 import type { Ref } from 'vue'
 import { fetchBoard, saveBoardNode } from '~/api/board'
+import { useApiBase } from '~/api/client'
 import type { BoardNode } from '~/api/board'
 import type { Note } from '~/api/notes'
 import type { Card } from '~/types/card'
@@ -64,6 +65,7 @@ export function useBoard() {
   const state = ensureState()
   const { cards } = useCards()
   const { notes } = useFiles()
+  const apiBase = useApiBase()
 
   const nodes = readonly(state.nodes)
   const loading = readonly(state.loading)
@@ -161,7 +163,7 @@ export function useBoard() {
     state.loading.value = true
     state.error.value = null
 
-    loadPromise = fetchBoard()
+    loadPromise = fetchBoard(apiBase)
       .then((nodes) => {
         state.nodes.value = nodes
       })
@@ -197,7 +199,7 @@ export function useBoard() {
 
     const node = state.nodes.value.find((item) => item.id === existing?.id || item.id === key)
 
-    void saveBoardNode(key, {
+    void saveBoardNode(apiBase, key, {
       x,
       y,
       // Для карточек размер фиксированный, для файлов — сохраняем текущий.

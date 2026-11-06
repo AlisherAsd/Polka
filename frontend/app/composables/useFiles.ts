@@ -1,6 +1,7 @@
 import { computed, readonly, ref } from 'vue'
 import type { Ref } from 'vue'
 import { createNote, fetchFolders, fetchNotes } from '~/api/notes'
+import { useApiBase } from '~/api/client'
 import type { Folder, Note } from '~/api/notes'
 import { TREE_ROOT_ID, buildFileTree } from '~/utils/fileTree'
 import type { FileNode } from '~/utils/fileTree'
@@ -41,6 +42,7 @@ function errorMessage(error: unknown, fallback: string): string {
 
 export function useFiles() {
   const state = ensureState()
+  const apiBase = useApiBase()
 
   const folders = readonly(state.folders)
   const notes = readonly(state.notes)
@@ -61,7 +63,7 @@ export function useFiles() {
     state.error.value = null
 
     try {
-      const [folders, notes] = await Promise.all([fetchFolders(), fetchNotes()])
+      const [folders, notes] = await Promise.all([fetchFolders(apiBase), fetchNotes(apiBase)])
 
       // Корневого узла в базе нет — он только для отображения.
       state.folders.value = folders.filter((folder) => folder.id !== TREE_ROOT_ID)
@@ -109,7 +111,7 @@ export function useFiles() {
     itemId?: string | null
     url?: string | null
   }): Promise<Note> {
-    const note = await createNote(input)
+    const note = await createNote(apiBase, input)
 
     state.notes.value = [note, ...state.notes.value]
 
