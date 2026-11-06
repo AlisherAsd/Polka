@@ -179,3 +179,27 @@ img {
 :where(input, textarea, select):focus-visible {
   border-color: var(--color-neutral-400);
 }
+
+/*
+ * Панель саммари внутри карточки: непрозрачная, тот же радиус снизу и тень,
+ * что у карточки, чтобы читалось как «контент заменился».
+ */
+.card-popover {
+  /*
+   * Триггер — блок внутри карточки, у которой своя рамка в 1px. Панель должна
+   * совпасть с внешними краями карточки, поэтому +2px к ширине блока, а левый
+   * край компенсируется `alignOffset: -1` в `CardItem.vue`.
+   */
+  box-sizing: border-box;
+  width: calc(var(--reka-popover-trigger-width) + 2px);
+  min-width: calc(var(--reka-popover-trigger-width) + 2px);
+  max-width: calc(var(--reka-popover-trigger-width) + 2px);
+  padding: 0.5rem;
+  border: 1px solid var(--color-line);
+  border-top: 0;
+  border-radius: 0 0 1rem 1rem;
+  background: var(--color-surface);
+  /* Без тени: панель должна продолжать карточку, а не «парить» над сеткой. */
+  box-shadow: none;
+  overflow: hidden;
+}
