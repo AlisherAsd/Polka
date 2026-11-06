@@ -19,8 +19,8 @@ const isBoard = computed<boolean>(() => route.path === '/board')
   <aside
     class="sticky top-0 flex h-dvh w-16 shrink-0 flex-col items-center gap-6 border-r border-line bg-surface py-3 sm:w-[68px]"
     aria-label="Основная навигация">
-    <!-- Лого: слово «ПОЛКА», сжатое до 40×40 -->
-    <NuxtLink to="/" class="mt-3" aria-label="Полка — на главную">
+    <!-- Лого: только на десктопе, на мобильном оно уже есть в AppMobileHeader -->
+    <NuxtLink to="/" class="mt-3 hidden sm:block" aria-label="Полка — на главную">
       <span class="block text-[15px] font-bold uppercase leading-none tracking-[-0.12em] text-black"
         style="transform: scaleY(3)">
         полка

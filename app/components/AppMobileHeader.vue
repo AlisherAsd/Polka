@@ -32,7 +32,7 @@ const { toggleMenu } = useMobileMenu()
           variant="ghost"
           size="md"
           square
-          icon="i-lucide-chevron-right"
+          icon="i-lucide-chevron-left"
           aria-label="Файлы"
           class="rounded-lg opacity-40"
           @click.prevent
@@ -46,10 +46,10 @@ const { toggleMenu } = useMobileMenu()
         variant="ghost"
         size="md"
         square
-        icon="i-lucide-chevron-right"
+        icon="i-lucide-chevron-left"
         :aria-label="sidePanelOpen ? 'Скрыть файлы' : 'Показать файлы'"
         :aria-expanded="sidePanelOpen"
-        :class="['rounded-lg transition-transform', sidePanelOpen ? 'rotate-0' : 'rotate-180']"
+        :class="['rounded-lg transition-transform', sidePanelOpen ? 'rotate-180' : 'rotate-0']"
         @click="toggleSidePanel"
       />
 
