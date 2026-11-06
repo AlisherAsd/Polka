@@ -1,4 +1,5 @@
 import { createId } from '~/utils/id'
+import { apiFetch, useApiBase } from '~/api/client'
 
 /** Состояние чата с ИИ: история на текущую сессию (в памяти). */
 export interface ChatEntry {
@@ -9,6 +10,7 @@ export interface ChatEntry {
 
 /** Общая история чата — переживает переходы между страницами. */
 export function useAiChat() {
+  const apiBase = useApiBase()
   const history = useState<ChatEntry[]>('ai-chat-history', () => [])
   const pending = useState<boolean>('ai-chat-pending', () => false)
   const failure = useState<string>('ai-chat-failure', () => '')
@@ -25,7 +27,7 @@ export function useAiChat() {
     pending.value = true
 
     try {
-      const res = await $fetch<{ text: string }>('/api/ask', {
+      const res = await apiFetch<{ text: string }>(apiBase, '/api/ask', {
         method: 'POST',
         body: { prompt },
       })

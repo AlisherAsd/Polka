@@ -6,9 +6,13 @@ import { computed, ref } from 'vue'
  * Список папок — реальный (`/api/folders`); если нужной нет, её можно создать.
  * Применение создаёт заметку с названием и описанием карточки.
  */
+import { apiFetch, useApiBase } from '~/api/client'
+
 const { open, closeModal } = useFolderModal()
 const { selectedIds, cards, clearSelection, setFolder } = useCards()
 const { selectableFolders, init, reload, addNote, noteForItem } = useFiles()
+const apiBase = useApiBase()
+const notify = useNotify()
 
 /** Выбранная папка (id). */
 const selectedFolderId = ref<string>('')
@@ -50,7 +54,7 @@ async function createFolder(): Promise<void> {
   failure.value = ''
 
   try {
-    const created = await $fetch<{ folder: { id: string } }>('/api/folders', {
+    const created = await apiFetch<{ folder: { id: string } }>(apiBase, '/api/folders', {
       method: 'POST',
       body: { name },
     })
@@ -58,8 +62,10 @@ async function createFolder(): Promise<void> {
     await reload()
     selectedFolderId.value = created.folder.id
     newFolderName.value = ''
+    notify.success(`Папка «${name}» создана`)
   } catch (error) {
-    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Не удалось создать папку'
+    failure.value = notify.messageOf(error, 'Не удалось создать папку')
+    notify.fail(error, 'Не удалось создать папку')
   } finally {
     creating.value = false
   }
@@ -89,7 +95,7 @@ async function apply(): Promise<void> {
       const existing = noteForItem(card.id)
 
       if (existing) {
-        await $fetch(`/api/notes/${encodeURIComponent(existing.id)}`, {
+        await apiFetch(apiBase, `/api/notes/${encodeURIComponent(existing.id)}`, {
           method: 'PATCH',
           body: { folderId: folder.id },
         })
@@ -110,8 +116,10 @@ async function apply(): Promise<void> {
     }
 
     await reload()
+    notify.success(`Заметки добавлены в папку «${folder.name}»`)
   } catch (error) {
-    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Не удалось сохранить папку'
+    failure.value = notify.messageOf(error, 'Не удалось сохранить папку')
+    notify.fail(error, 'Не удалось сохранить папку')
   } finally {
     closeModal()
     clearSelection()

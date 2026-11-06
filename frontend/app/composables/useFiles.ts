@@ -43,6 +43,7 @@ function errorMessage(error: unknown, fallback: string): string {
 export function useFiles() {
   const state = ensureState()
   const apiBase = useApiBase()
+  const notify = useNotify()
 
   const folders = readonly(state.folders)
   const notes = readonly(state.notes)
@@ -70,6 +71,7 @@ export function useFiles() {
       state.notes.value = notes
     } catch (err) {
       state.error.value = errorMessage(err, 'Не удалось загрузить файлы')
+      notify.error(state.error.value, 'Файлы не загрузились')
     } finally {
       state.loading.value = false
     }
@@ -103,6 +105,7 @@ export function useFiles() {
   /**
    * Создаёт заметку (файл) в папке и обновляет списки.
    * Используется добавлением карточки в папку и сохранением саммари.
+   * Тост показывает вызывающий код: у одной заметки несколько сценариев.
    */
   async function addNote(input: {
     title: string

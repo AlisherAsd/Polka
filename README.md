@@ -1,172 +1,239 @@
 # polka
 
-Один Cloudflare Worker: Nuxt SSR и `/api/**` на Nitro-хендлерах, база — D1.
-Отдельного бэкенд-сервиса нет: Fastify удалён после переезда на Nitro.
+Один Cloudflare Worker: Nuxt 4 (SSR) и `/api/**` на Nitro-хендлерах, база — Cloudflare D1.
+Плюс нативное приложение для macOS на Tauri 2, которое использует тот же API.
 
 ```
-frontend/       Nuxt 4 + @nuxt/ui: UI и API (server/api, Nitro), D1-биндинги
-frontend/migrations/  миграции D1 (единый источник правды)
-wrangler.jsonc  конфиг воркера: Nuxt SSR + /api + биндинг D1
+frontend/              Nuxt 4 + @nuxt/ui: UI и API (server/api, Nitro), D1-биндинги
+frontend/migrations/   миграции D1 (единый источник правды)
+wrangler.jsonc         конфиг воркера: Nuxt SSR + /api + биндинг D1
+apps/desktop/          нативное приложение для macOS (Rust + Tauri, WKWebView)
+Makefile               частые команды (`make help`)
 ```
+
+## Требования
+
+- Node.js 24 и npm 11
+- для нативного приложения: Rust (`rustup`), Xcode Command Line Tools / Xcode
+- аккаунт Cloudflare (только для деплоя)
 
 ## Установка
 
 ```bash
-npm install                # из корня
+npm install                 # зависимости корня и frontend (npm workspaces)
+cd apps/desktop && npm install   # только для нативного приложения
 ```
 
-Зависимости поднимаются в корневой `node_modules`, lock-файл один —
-`package-lock.json` в корне.
+Lock-файл один — `package-lock.json` в корне. У нативного приложения свой
+(`apps/desktop/package-lock.json`).
 
-## Запуск
+---
+
+## 1. Локальный запуск веба
 
 ```bash
-npm run dev                # Nuxt dev на http://localhost:3000 (API и UI вместе)
+npm run dev        # или: make dev
 ```
 
-В dev Nitro включает cloudflare-dev эмуляцию: `getPlatformProxy()` из wrangler
-поднимает биндинги (D1) и кладёт их в `event.context.cloudflare`, так что те же
-Nitro-хендлеры `frontend/server/api/**` работают локально без отдельного сервера.
+- Открывается http://localhost:3000 — UI и API в одном процессе.
+- Nitro включает cloudflare-dev эмуляцию: `getPlatformProxy()` из wrangler
+  поднимает биндинги (D1) и кладёт их в `event.context.cloudflare`, поэтому
+  `frontend/server/api/**` работает локально без отдельного сервера.
+- Локальная база — `.wrangler/state/v3/d1`. Та же, что у `wrangler dev`.
 
-Проверка API: `curl http://localhost:3000/api/items` → `{"items":[]}`.
-
-## Сборка и деплой
+Первичная подготовка базы (один раз):
 
 ```bash
-npm run build              # Nuxt для Cloudflare Workers → frontend/.output
-npm run deploy             # wrangler deploy из корня (wrangler.jsonc)
-npm run typecheck          # nuxt typecheck + tsc --noEmit
+npm run d1:migrate     # или: make migrate
 ```
 
-Preset Nitro — `cloudflare_module` (`frontend/nuxt.config.ts`), переопределяется
-`NITRO_PRESET`. Worker-конфиг лежит в корне (`wrangler.jsonc`):
-`main` → `frontend/.output/server/index.mjs`, assets → `frontend/.output/public`.
-
-**Настройки проекта в Cloudflare (Workers Builds):**
-
-| Параметр            | Значение              |
-| ------------------- | --------------------- |
-| Root directory      | `/`                   |
-| Build command       | `npm run build`       |
-| Deploy command      | `npx wrangler deploy` |
-| Node.js             | 24                    |
-
-Локальная проверка без деплоя:
+Проверка:
 
 ```bash
-XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler deploy --dry-run
+curl http://localhost:3000/api/items     # {"items":[]}
+curl http://localhost:3000/api/folders   # {"folders":[{"id":"ai-voult",...}]}
 ```
 
-(`XDG_CONFIG_HOME` внутри проекта — потому что `~/Library/Preferences/.wrangler`
-на macOS бывает недоступен для записи; `npm run dev` и `nuxt.config.ts` уводят
-его внутрь проекта автоматически.)
+Ключ модели для `/api/ask` и `/api/summarize` — в `frontend/.env`:
 
-## Переменные окружения
+```
+OPENROUTER_KEY=sk-or-v1-...
+```
 
-**Worker (production), задаётся в дашборде Cloudflare или в `wrangler.jsonc`:**
+Без него ручки отвечают `500 Ключ API не найден`, остальное работает.
 
-| Переменная             | По умолчанию | Назначение                                                    |
-| ---------------------- | ------------ | ------------------------------------------------------------- |
-| `NUXT_PUBLIC_API_BASE` | `""`         | пусто — API в том же воркере (same-origin)                    |
-| `OPENROUTER_KEY` (secret) | —        | `npx wrangler secret put OPENROUTER_KEY`                      |
+### Если на macOS ошибки `EPERM ... ~/Library/Preferences/.wrangler`
 
-**Локально (ключ модели):** `frontend/.env` с `OPENROUTER_KEY=` — Nitro читает
-его как env при `npm run dev`.
+Скрипт `npm run dev` уже уводит конфиг wrangler внутрь проекта
+(`XDG_CONFIG_HOME=.wrangler/config/xdg`). Для ручных вызовов wrangler:
 
-Клиент всегда ходит на `/api/**` того же origin: в dev его обслуживают те же
-Nitro-хендлеры через cloudflare-dev эмуляцию, в проде — воркер с биндингом `DB`.
+```bash
+XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler <команда>
+```
 
-> На macOS wrangler/miniflare кладут служебные файлы в
-> `~/Library/Preferences/.wrangler`, куда часто нет прав (EPERM). `npm run dev`
-> и `nuxt.config.ts` уводят их в `.wrangler/config/xdg` внутри проекта.
+---
+
+## 2. Деплой: что делать при пуше
+
+```bash
+npm run typecheck      # или: make check      — типы
+npm run build          # или: make deploy-local — сборка + `wrangler deploy --dry-run`
+npm run deploy         # или: make ship       — сборка и выкладка воркера
+```
+
+Что важно:
+
+1. **Миграции.** Если в коммите появились файлы `frontend/migrations/*.sql`,
+   их надо применить к боевой D1 **до** или сразу после деплоя:
+   ```bash
+   npm run d1:migrate:remote      # или: make migrate-remote
+   ```
+   Иначе новые ручки упадут (`no such table`). `GET /api/board` в этом случае
+   отдаёт пустой список вместо 500, `PATCH` — 503 с подсказкой.
+2. **Секреты.** Ключ модели — секрет воркера:
+   ```bash
+   npx wrangler secret put OPENROUTER_KEY    # или: make secret
+   ```
+3. **Переменные.** `NUXT_PUBLIC_API_BASE` и `CORS_ORIGINS` — в `wrangler.jsonc`
+   (`vars`). Меняются только новым деплоем.
+4. **Автодеплой.** В Cloudflare Workers Builds (Settings → Build) должно быть:
+
+   | Параметр         | Значение              |
+   | ---------------- | --------------------- |
+   | Root directory   | `/`                   |
+   | Build command    | `npm run build`       |
+   | Deploy command   | `npx wrangler deploy` |
+   | Node.js          | 24                    |
+
+   Тогда обычный `git push` в подключённую ветку собирает и выкладывает воркер.
+5. **Проверка после деплоя:**
+   ```bash
+   curl -s https://<воркер>/api/items | head -c 120
+   curl -s -o /dev/null -D - https://<воркер>/api/items -H 'origin: tauri://localhost' | grep -i access-control
+   ```
+
+Ручной деплой без `push`: `make ship` (typecheck → build → `wrangler deploy`).
+
+---
+
+## 3. Сборка нативного приложения (macOS)
+
+Стек: Tauri 2 (Rust + системный WKWebView). Фронт берётся из той же кодовой
+базы и собирается в статику (SPA) — SSR для натива отключается флагом.
+
+### Сборка
+
+```bash
+npm run desktop:build
+```
+
+Внутри две команды:
+
+1. `npm run desktop:web` — `NUXT_SPA=1 NUXT_PUBLIC_API_BASE=<адрес API> nuxt generate`
+   → статика в `frontend/.output/public` (SSR отключается **только** для этой
+   сборки, веб-деплой не затрагивается);
+2. `tauri build` в `apps/desktop` — Rust-сборка и бандл `.app`.
+
+Первый прогон компилирует зависимости (~1–2 мин), дальше — быстрее.
+
+### Где результат
+
+```
+apps/desktop/src-tauri/target/release/bundle/macos/Полка.app
+apps/desktop/src-tauri/target/release/polka-desktop     # бинарь внутри
+```
+
+Запуск: `open "apps/desktop/src-tauri/target/release/bundle/macos/Полка.app"`.
+
+Инсталлятор `.dmg`:
+
+```bash
+cd apps/desktop
+npx tauri build --bundles dmg app
+# → src-tauri/target/release/bundle/dmg/Полка_1.0.0_aarch64.dmg
+```
+
+### Адрес API
+
+По умолчанию `https://polka.alishersharipovtol.workers.dev`. Переопределяется:
+
+```bash
+NUXT_PUBLIC_API_BASE=https://мой-api npm run desktop:build
+```
+
+Для загрузки UI из сети (без пересборки на каждое изменение) можно собрать
+`.app` с `devUrl` — см. `apps/desktop/src-tauri/tauri.conf.json`.
+
+### Разработка натива
+
+```bash
+cd apps/desktop
+npm run dev     # поднимает nuxt dev (:3000) и окно WKWebView
+```
+
+### Подпись и нотаризация
+
+Без сертификата `.app` запускается только локально (на других Mac — «повреждено»,
+обход: `xattr -dr com.apple.quarantine Полка.app`). Для распространения:
+
+```bash
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Имя (TEAMID)"
+export APPLE_ID="you@example.com"
+export APPLE_PASSWORD="app-specific-password"   # app-specific password
+export APPLE_TEAM_ID="XXXXXXXXXX"
+npm run desktop:build
+```
+
+### CORS
+
+Origin нативного WebView должен быть разрешён на воркере (`CORS_ORIGINS`
+в `wrangler.jsonc`): сейчас там `tauri://localhost`, `http://tauri.localhost`,
+`https://tauri.localhost`. Если приложение шлёт другой origin, его видно в
+веб-инспекторе (ПКМ → «Показать веб-инспектор») — добавьте и передеплойте воркер.
+
+---
 
 ## API
 
-- `POST /api/ask` — `{ prompt }` → `{ text }`; история чата хранится в памяти инстанса
-- `POST /api/summarize` — `{ prompt?, cards: [{ title, authorName, description, url }] }` → `{ text }`
-- `GET  /api/items?limit=100` → `{ items }` — карточки, новые первыми (`limit` 1..500)
-- `POST /api/items` — `{ type?, url?, title?, thumbnail?, summary?, content?, fileId? }` → `201 { item }`;
-  `type` из `youtube | tiktok | article | note` (по умолчанию `article`). `url` обязателен и
-  должен быть http(s) для `youtube`/`tiktok`/`article`, необязателен для `note`
-  (иначе `400 Некорректная ссылка`)
-- `PATCH /api/items/:id` — частичное обновление (`type, url, title, thumbnail, summary,
-  content, fileId`), обновляет `updatedAt` → `{ item }`; `404`, если карточки нет.
-  Сюда фронтенд сохраняет саммари от ИИ
-- `DELETE /api/items/:id` → `204`, или `404`, если карточки нет
+- `GET /api/items?limit=100` → `{ items }`; `POST /api/items`, `PATCH /api/items/:id`, `DELETE /api/items/:id`
+- `GET /api/folders`, `POST /api/folders` — папки (по умолчанию `ai-voult`)
+- `GET /api/notes?folderId=&itemId=`, `POST /api/notes`, `GET/PATCH/DELETE /api/notes/:id`
+- `GET /api/board`, `PATCH /api/board/:id` — позиции узлов доски (id карточки или заметки)
+- `POST /api/summarize` — суммаризация; саммари сохраняется файлом в `ai-voult`
+- `POST /api/transcript` — субтитры YouTube по ссылке
+- `POST /api/ask` — чат с моделью
 
-Модель карточки (одинаковая на фронте и в БД):
+Модель карточки (`items`):
 
 ```ts
 interface Card {
   id: string
   type: 'youtube' | 'tiktok' | 'article' | 'note'
-  url?: string        // у заметок её нет
+  url?: string
   title: string
   thumbnail?: string
-  summary?: string    // саммари от ИИ
-  content?: string    // транскрипт или текст
+  summary?: string
+  content?: string
   fileId?: string
   createdAt: string
   updatedAt: string
 }
 ```
 
-Ошибки возвращаются как `{ message }` со статусом 400/404/500/502.
+Заметки и папки — в [`frontend/API-notes.md`](frontend/API-notes.md).
 
-## D1 (Cloudflare)
-
-Карточки хранятся в Cloudflare D1. Для разработки достаточно локального
-SQLite-состояния wrangler — платный аккаунт не нужен.
-
-```bash
-npm run d1:migrate        # wrangler d1 migrations apply polka-db --local
-```
-
-- Миграции: `frontend/migrations/*.sql`, биндинг `DB` — в корневом `wrangler.jsonc`.
-- Локальное состояние: `.wrangler/state/v3/d1` — одно и то же для `npm run dev`
-  (cloudflare-dev) и `wrangler dev`; в git не попадает.
-- Посмотреть данные: `npx wrangler d1 execute polka-db --local --command "select * from items"`.
-- Для production:
-  ```bash
-  make login            # вход в Cloudflare
-  make db-create        # создаст polka-db и впишет database_id в wrangler.jsonc
-  make migrate-remote   # миграции в боевую базу
-  make secret           # ключ OpenRouter в секреты воркера
-  make ship             # typecheck + сборка + deploy
-  ```
-- Локальный прогон воркера: `XDG_CONFIG_HOME=$PWD/.wrangler/config/xdg npx wrangler dev --local`
-  (миграции в локальную D1 воркера: `npx wrangler d1 migrations apply polka-db --local`).
-
-## Makefile
-
-Частые команды собраны в `make` (`make help` — список). Везде уже проставлен
-`XDG_CONFIG_HOME` внутрь проекта, поэтому EPERM на macOS не всплывает.
-
-| Команда              | Что делает                                                        |
-| -------------------- | ----------------------------------------------------------------- |
-| `make install`       | зависимости из корня                                              |
-| `make dev`           | dev-сервер :3000 (UI + API + локальная D1)                        |
-| `make check`         | проверка типов                                                    |
-| `make deploy-local`  | сборка + `wrangler deploy --dry-run`                              |
-| `make setup`         | с нуля: install → создать D1 → локальные миграции                 |
-| `make db-create`     | создать D1 (если нет) и вписать `database_id` в `wrangler.jsonc`  |
-| `make db-id`         | показать `database_id` из конфига и из аккаунта                   |
-| `make migrate`       | миграции в локальную D1                                           |
-| `make migrate-remote`| миграции в боевую D1                                              |
-| `make secret`        | `wrangler secret put OPENROUTER_KEY` (интерактивно)               |
-| `make login`         | `wrangler login` (интерактивно)                                   |
-| `make ship`          | typecheck + сборка + `wrangler deploy`                            |
-| `make clean`         | удалить артефакты сборки и локальную D1                           |
-
-Интерактивные шаги (`login`, `secret`) автоматизировать нельзя, они вынесены
-отдельно и вызываются один раз.
+---
 
 ## Скрипты
 
-| Команда             | Что делает                        |
-| ------------------- | --------------------------------- |
-| `npm run build`            | production-сборка Nuxt            |
-| `npm run deploy`           | `wrangler deploy` из корня        |
-| `npm run d1:migrate`       | миграции в локальную D1           |
-| `npm run d1:migrate:remote`| миграции в боевую D1              |
-| `npm run typecheck`        | `nuxt typecheck`                  |
+| Команда                     | Что делает                                         |
+| --------------------------- | -------------------------------------------------- |
+| `npm run dev`               | dev-сервер :3000 (UI + API + локальная D1)          |
+| `npm run build`             | сборка воркера → `frontend/.output`                 |
+| `npm run deploy`            | `wrangler deploy`                                   |
+| `npm run typecheck`         | `nuxt typecheck`                                    |
+| `npm run d1:migrate`        | миграции в локальную D1                             |
+| `npm run d1:migrate:remote` | миграции в боевую D1                                |
+| `npm run desktop:web`       | статика Nuxt для натива                             |
+| `npm run desktop:build`     | статика + `.app` (Tauri)                            |
+| `make help`                 | то же плюс `setup`, `db-create`, `secret`, `clean`  |

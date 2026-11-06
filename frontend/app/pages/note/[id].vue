@@ -11,6 +11,7 @@ import type { Note } from '~/api/notes'
  */
 const route = useRoute()
 const apiBase = useApiBase()
+const notify = useNotify()
 
 const noteId = computed<string>(() => String(route.params.id ?? ''))
 
@@ -60,7 +61,8 @@ async function load(): Promise<void> {
     title.value = note.value.title
     snapshot = source.value
   } catch (error) {
-    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Заметка не найдена'
+    failure.value = notify.messageOf(error, 'Заметка не найдена')
+    notify.fail(error, 'Заметка не загрузилась')
     note.value = null
   } finally {
     loading.value = false
@@ -97,8 +99,10 @@ async function save(): Promise<void> {
     })
     snapshot = source.value
     isEditing.value = false
+    notify.success('Заметка сохранена')
   } catch (error) {
-    failure.value = (error as { data?: { message?: string } })?.data?.message ?? 'Не удалось сохранить заметку'
+    failure.value = notify.messageOf(error, 'Не удалось сохранить заметку')
+    notify.fail(error, 'Заметка не сохранена')
   } finally {
     saving.value = false
   }

@@ -3,6 +3,7 @@ import type { Card } from '~/types/card'
 import type { Note } from '~/api/notes'
 import { updateItem } from '~/api/items'
 import { useCards } from '~/composables/useCards'
+import { apiFetch, useApiBase } from '~/api/client'
 
 /**
  * Модалка «Суммировать ИИ»: промпт + контекст выделенных файлов.
@@ -19,8 +20,9 @@ const props = defineProps<{
 const { open, closeModal } = useSummarizeModal()
 const { cards: stateCards, replaceCard } = useCards()
 
-/** Публичная база API из runtimeConfig (читается здесь, в Nuxt-контексте). */
-const apiBase = String(useRuntimeConfig().public.apiBase ?? '')
+/** База API: пусто — тот же origin, иначе — внешний адрес (нативное приложение). */
+const apiBase = useApiBase()
+const notify = useNotify()
 
 const prompt = ref<string>('Сделай краткое саммари этих материалов.')
 const answer = ref<string>('')
@@ -73,7 +75,7 @@ async function submit(): Promise<void> {
   answer.value = ''
 
   try {
-    const res = await $fetch<{ text: string }>('/api/summarize', {
+    const res = await apiFetch<{ text: string }>(apiBase, '/api/summarize', {
       method: 'POST',
       body: {
         prompt: prompt.value,
@@ -90,13 +92,23 @@ async function submit(): Promise<void> {
     })
 
     answer.value = res.text
+
+    if (!res.text.trim()) {
+      failure.value = 'Модель не вернула текст, попробуйте ещё раз'
+      notify.error(failure.value, 'Саммари не получено')
+
+      return
+    }
+
     await persistSummary(props.cards, res.text)
 
     // Бэкенд сложил саммари файлом в `ai-voult` — обновляем дерево файлов.
     await useFiles().reload()
+
+    notify.success('Саммари сохранено в ai-voult')
   } catch (error) {
-    failure.value =
-      error instanceof Error ? error.message : 'Не удалось получить ответ'
+    failure.value = notify.messageOf(error, 'Не удалось получить ответ')
+    notify.fail(error, 'Не удалось получить ответ')
   } finally {
     pending.value = false
   }

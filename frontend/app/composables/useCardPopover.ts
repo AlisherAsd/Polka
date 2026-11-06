@@ -5,6 +5,8 @@
  * Здесь же живёт состояние запроса: статус и результат по id карточки,
  * чтобы панель могла сразу показать загрузку и текст ответа.
  */
+import { apiFetch, useApiBase } from '~/api/client'
+
 export type SummaryStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 export interface SummaryState {
@@ -22,6 +24,8 @@ interface TranscriptResponse {
 }
 
 export function useCardPopover() {
+  const apiBase = useApiBase()
+  const notify = useNotify()
   const openId = useState<string | null>('card-summary-popover', () => null)
   const summaries = useState<Record<string, SummaryState>>('card-summaries', () => ({}))
   /** Защита от повторных запросов по одной карточке. */
@@ -75,7 +79,7 @@ export function useCardPopover() {
 
       if (card.type === 'youtube' && card.url) {
         try {
-          const transcript = await $fetch<TranscriptResponse>('/api/transcript', {
+          const transcript = await apiFetch<TranscriptResponse>(apiBase, '/api/transcript', {
             method: 'POST',
             body: { url: card.url },
           })
@@ -88,7 +92,7 @@ export function useCardPopover() {
         }
       }
 
-      const res = await $fetch<{ text: string }>('/api/summarize', {
+      const res = await apiFetch<{ text: string }>(apiBase, '/api/summarize', {
         method: 'POST',
         body: {
           cards: [
@@ -108,16 +112,23 @@ export function useCardPopover() {
       // (см. /api/summarize), поэтому дерево файлов перечитываем.
       void useFiles().reload()
 
-      setSummary(card.id, { status: 'ready', text: text || 'Модель вернула пустой ответ' })
-    } catch (error) {
-      const message = (error as { data?: { message?: unknown } })?.data?.message
+      if (text.length === 0) {
+        // Модель ответила 200, но без текста — это ошибка, а не готовый ответ.
+        const message = 'Модель не вернула текст, попробуйте ещё раз'
 
-      setSummary(card.id, {
-        status: 'error',
-        text: typeof message === 'string' && message.length > 0
-          ? message
-          : 'Не удалось получить саммари',
-      })
+        setSummary(card.id, { status: 'error', text: message })
+        notify.error(message, 'Саммари не получено')
+
+        return
+      }
+
+      setSummary(card.id, { status: 'ready', text })
+      notify.success('Саммари сохранено в ai-voult')
+    } catch (error) {
+      const message = notify.messageOf(error, 'Не удалось получить саммари')
+
+      setSummary(card.id, { status: 'error', text: message })
+      notify.error(message, 'Саммари не получено')
     } finally {
       inFlight.delete(card.id)
     }

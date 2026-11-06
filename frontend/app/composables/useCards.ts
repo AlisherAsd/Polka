@@ -49,6 +49,7 @@ function errorMessage(error: unknown, fallback: string): string {
  */
 export function useCards() {
   const state = ensureState();
+  const notify = useNotify();
 
   /**
    * Адрес бэкенда читаем только внутри Nuxt-контекста (в setup composable)
@@ -85,6 +86,7 @@ export function useCards() {
       state.cards.value = await fetchItems(apiBase, 200);
     } catch (err) {
       state.error.value = errorMessage(err, "Не удалось загрузить карточки");
+      notify.error(state.error.value, "Карточки не загрузились");
     } finally {
       state.loading.value = false;
     }
@@ -194,12 +196,15 @@ export function useCards() {
         });
 
         prepend([saved]);
+        notify.success(`Карточка «${saved.title}» создана`);
       } catch (err) {
         prepend([card]);
         state.error.value = errorMessage(err, "Не удалось сохранить ссылку");
+        notify.error(state.error.value, "Карточка не сохранена");
       }
     } catch {
       state.error.value = "Не удалось добавить ссылку";
+      notify.error(state.error.value, "Карточка не создана");
     } finally {
       state.loading.value = false;
     }
@@ -238,6 +243,7 @@ export function useCards() {
           ...backup.filter((card) => restored.has(card.id) && !present.has(card.id)),
         ];
         state.error.value = "Не удалось удалить карточку";
+        notify.error(state.error.value);
       },
     );
   }
