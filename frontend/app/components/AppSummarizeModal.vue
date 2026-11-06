@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import type { Card } from '~/types/card'
+import type { Note } from '~/api/notes'
 import { updateItem } from '~/api/items'
 import { useCards } from '~/composables/useCards'
 
 /**
- * Модалка «Суммировать ИИ»: промпт + контекст выделенных карточек.
- * Контекст передаётся в `/api/summarize`, ответ показывается ниже формы.
+ * Модалка «Суммировать ИИ»: промпт + контекст выделенных файлов.
+ * В `/api/summarize` уходит текст файлов (заметок); карточки нужны только,
+ * чтобы привязать ответ к карточке и обновить её `summary`.
  */
 const props = defineProps<{
-  /** Карточки, которые попадут в контекст. */
+  /** Файлы (заметки), которые попадут в контекст. */
+  notes: readonly Note[]
+  /** Карточки выделения: к ним привязывается результат. */
   cards: readonly Card[]
 }>()
 
@@ -47,6 +51,9 @@ async function persistSummary(cards: readonly Card[], text: string): Promise<voi
   )
 }
 
+/** Нечего суммировать: нет ни одного файла в выделении. */
+const canSubmit = computed<boolean>(() => props.notes.length > 0)
+
 function handleOpenChange(value: boolean): void {
   open.value = value
 
@@ -57,7 +64,7 @@ function handleOpenChange(value: boolean): void {
 }
 
 async function submit(): Promise<void> {
-  if (pending.value || props.cards.length === 0) {
+  if (pending.value || props.notes.length === 0) {
     return
   }
 
@@ -70,13 +77,15 @@ async function submit(): Promise<void> {
       method: 'POST',
       body: {
         prompt: prompt.value,
-        // Бэкенд /api/summarize ждёт старое поле `description` — кладём туда саммари.
-        cards: props.cards.map((card) => ({
-          id: card.id,
-          title: card.title,
-          description: card.summary,
-          url: card.url,
+        // Контекст собирается из файлов: название + их содержимое.
+        cards: props.notes.map((note) => ({
+          id: note.itemId,
+          title: note.title,
+          description: note.content,
+          url: note.url,
         })),
+        // Саммари складывается в `ai-voult` файлом, привязанным к карточке.
+        itemId: props.cards.length === 1 ? props.cards[0]?.id : undefined,
       },
     })
 
@@ -103,22 +112,27 @@ async function submit(): Promise<void> {
   >
     <template #body>
       <div class="flex flex-col gap-3">
+        <!-- Контекст — файлы (заметки), а не карточки -->
         <div class="flex flex-wrap gap-1">
           <UBadge
-            v-for="card in cards"
-            :key="card.id"
+            v-for="note in notes"
+            :key="note.id"
             color="neutral"
             variant="subtle"
             size="xs"
-            :label="card.title"
+            :label="note.title"
           />
         </div>
+
+        <p v-if="!canSubmit" class="text-xs text-mute">
+          Выберите файлы на доске или карточку с файлом, чтобы собрать контекст.
+        </p>
 
         <UTextarea
           v-model="prompt"
           :rows="3"
           autoresize
-          placeholder="Что сделать с выделенными карточками?"
+          placeholder="Что сделать с выделенными файлами?"
           class="w-full"
         />
 
@@ -157,7 +171,7 @@ async function submit(): Promise<void> {
           label="Суммировать"
           class="rounded-xl px-5"
           :loading="pending"
-          :disabled="pending"
+          :disabled="pending || !canSubmit"
           @click="submit"
         />
       </div>

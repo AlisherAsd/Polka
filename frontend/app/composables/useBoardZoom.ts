@@ -3,7 +3,10 @@ export function useBoardZoom() {
   const MIN = 0.4
   const MAX = 2
 
-  const scale = useState<number>('board-zoom-scale', () => 1)
+  /** Стартовый масштаб доски — 40%. */
+  const DEFAULT = 0.4
+
+  const scale = useState<number>('board-zoom-scale', () => DEFAULT)
 
   function clamp(value: number): number {
     return Math.min(MAX, Math.max(MIN, Number(value.toFixed(2))))
@@ -21,9 +24,10 @@ export function useBoardZoom() {
     setScale(scale.value - 0.1)
   }
 
+  /** Сброс к стартовому масштабу (40%). */
   function reset(): void {
-    scale.value = 1
+    scale.value = DEFAULT
   }
 
-  return { scale, zoomIn, zoomOut, reset, setScale, MIN, MAX }
+  return { scale, zoomIn, zoomOut, reset, setScale, MIN, MAX, DEFAULT }
 }

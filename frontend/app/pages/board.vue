@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Card } from '~/types/card'
+import type { Note } from '~/api/notes'
 
 /**
  * Доска: карточки и файлы (заметки) — перетаскиваемые узлы с общим зумом
@@ -9,6 +10,7 @@ import type { Card } from '~/types/card'
  */
 const { cards } = useCards()
 const { placed, links, init: initBoard, moveNode } = useBoard()
+const { notes } = useFiles()
 const { scale, zoomIn, zoomOut, reset, setScale } = useBoardZoom()
 const { openModal: openSummarize } = useSummarizeModal()
 
@@ -57,7 +59,7 @@ const hint = computed<string>(() =>
 )
 const percent = computed<number>(() => Math.round(scale.value * 100))
 
-/** Только карточки из выделения — их отправляем в суммаризацию. */
+/** Карточки из выделения: к ним привязывается результат саммари. */
 const selectedCards = computed<Card[]>(() =>
   placed.value
     .filter((item): item is Extract<typeof item, { kind: 'card' }> =>
@@ -65,6 +67,26 @@ const selectedCards = computed<Card[]>(() =>
     )
     .map((item) => item.card),
 )
+
+/**
+ * Контекст для ИИ — файлы (заметки) из выделения. Если выделены только карточки,
+ * берём их файлы: один файл на карточку (`notes.item_id`).
+ */
+const selectedNotes = computed<Note[]>(() => {
+  const picked = new Set(selectedIds.value)
+  const direct = placed.value
+    .filter((item): item is Extract<typeof item, { kind: 'file' }> => item.kind === 'file')
+    .filter((item) => picked.has(item.key))
+    .map((item) => item.note)
+
+  if (direct.length > 0) {
+    return direct
+  }
+
+  const cardIds = new Set(selectedCards.value.map((card) => card.id))
+
+  return notes.value.filter((note) => Boolean(note.itemId) && cardIds.has(note.itemId as string))
+})
 
 function handleSlider(event: Event): void {
   const target = event.target
@@ -466,6 +488,6 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <AppSummarizeModal :cards="selectedCards" />
+    <AppSummarizeModal :notes="selectedNotes" :cards="selectedCards" />
   </section>
 </template>
