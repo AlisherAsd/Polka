@@ -42,3 +42,6 @@ frontend/.wrangler/
 # Локальное состояние и конфиг wrangler/miniflare
 .wrangler/
 frontend/.wrangler/
+
+# Rust / Tauri
+apps/desktop/src-tauri/target/

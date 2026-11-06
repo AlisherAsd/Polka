@@ -19,12 +19,18 @@ export default defineNuxtConfig({
   // поэтому собственный `vite.plugins: [tailwindcss()]` больше не нужен.
   modules: ["@nuxt/ui"],
 
+  // SPA-режим для нативного приложения (`npm run desktop:build`):
+  // страницы собираются статикой и ходят в API по абсолютному адресу.
+  // Без флага `NUXT_SPA` всё как раньше — SSR под Cloudflare Workers.
+  ssr: env.NUXT_SPA === "1" ? false : true,
+
   // Сборка под Cloudflare Workers (preset nitro). Локальный `nuxt dev`
   // этот параметр игнорирует, поэтому dev остаётся прежним.
   // В dev Nitro сам поднимает getPlatformProxy() из wrangler и кладёт биндинги
   // (D1) в event.context.cloudflare — API можно проверять без Fastify.
   nitro: {
-    preset: env.NITRO_PRESET ?? "cloudflare_module",
+    preset:
+      env.NUXT_SPA === "1" ? "static" : (env.NITRO_PRESET ?? "cloudflare_module"),
     cloudflare: {
       dev: {
         // Конфиг лежит в корне монорепы, а не рядом с frontend/.
@@ -54,11 +60,9 @@ export default defineNuxtConfig({
     storageKey: "recall-color-mode",
   },
 
-  ui: {
-    theme: {
-      colors: ["primary", "neutral"],
-    },
-  },
+  // Цвета Nuxt UI задаются в `app/app.config.ts` (`ui.colors`).
+  // `ui.theme.colors` здесь только дублировал список и не менял палитру —
+  // из-за этого primary оставался встроенным `green`.
 
   app: {
     head: {

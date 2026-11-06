@@ -10,7 +10,11 @@ const DEFAULT_ORIGINS = [
   'http://localhost:3000',
   'http://localhost',
   'https://localhost',
+  // Оболочки нативного приложения.
   'capacitor://localhost',
+  'tauri://localhost',
+  'http://tauri.localhost',
+  'https://tauri.localhost',
 ]
 
 /**

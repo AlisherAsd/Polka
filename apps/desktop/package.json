@@ -1,0 +1,16 @@
+{
+  "name": "polka-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Нативное приложение Полки для macOS (Tauri + WKWebView)",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri",
+    "icons": "tauri icon ../frontend/public/logo-icon.png || echo 'нет исходной иконки — используется дефолт Tauri'"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}
