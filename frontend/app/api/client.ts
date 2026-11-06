@@ -36,13 +36,40 @@ const rawFetch = $fetch as unknown as (url: string, options?: FetchOptions) => P
 /** База API: пустая строка — тот же origin. */
 export type ApiBase = string
 
-/** Запрос к API относительно базы. */
+/** Ключ токена натива (дублирует httpOnly cookie для WebView). */
+const TOKEN_KEY = 'polka-token'
+
+/** Токен, сохранённый при входе в нативном приложении. */
+export function storedToken(): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    return window.localStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Запрос к API относительно базы.
+ *
+ * Cookie-сессия сайта уходит сама (`credentials` не отключаем); для натива
+ * добавляем `Authorization: Bearer`, если токен сохранён после входа.
+ */
 export async function apiFetch<T>(
   base: ApiBase,
   path: string,
   options: FetchOptions = {},
 ): Promise<T> {
-  return (await rawFetch(apiUrl(base, path), options)) as T
+  const token = storedToken()
+  const headers = (options.headers ?? {}) as Record<string, string>
+
+  return (await rawFetch(apiUrl(base, path), {
+    ...options,
+    headers: token ? { authorization: `Bearer ${token}`, ...headers } : headers,
+  })) as T
 }
 
 export { messageOf as apiErrorMessage }

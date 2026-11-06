@@ -1,14 +1,22 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 // В `nuxt.config.ts` нет типов Node.js, поэтому читаем env без `process`.
-const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
+const env =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env ?? {};
 
 // wrangler/miniflare пишут служебные файлы в ~/Library/Preferences/.wrangler,
 // куда на macOS нет прав (EPERM). Уводим их конфиг-каталог внутрь проекта.
-const nodeProcess = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+const nodeProcess = (
+  globalThis as { process?: { env?: Record<string, string | undefined> } }
+).process;
 
-if (nodeProcess?.env && !nodeProcess.env.XDG_CONFIG_HOME && nodeProcess.env.PWD) {
-  nodeProcess.env.XDG_CONFIG_HOME = `${nodeProcess.env.PWD}/.wrangler/config/xdg`
+if (
+  nodeProcess?.env &&
+  !nodeProcess.env.XDG_CONFIG_HOME &&
+  nodeProcess.env.PWD
+) {
+  nodeProcess.env.XDG_CONFIG_HOME = `${nodeProcess.env.PWD}/.wrangler/config/xdg`;
 }
 
 export default defineNuxtConfig({
@@ -30,7 +38,9 @@ export default defineNuxtConfig({
   // (D1) в event.context.cloudflare — API можно проверять без Fastify.
   nitro: {
     preset:
-      env.NUXT_SPA === "1" ? "static" : (env.NITRO_PRESET ?? "cloudflare_module"),
+      env.NUXT_SPA === "1"
+        ? "static"
+        : (env.NITRO_PRESET ?? "cloudflare_module"),
     cloudflare: {
       dev: {
         // Конфиг лежит в корне монорепы, а не рядом с frontend/.
@@ -67,7 +77,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: "ru" },
-      title: "Recall — библиотека ссылок",
+      title: "Полка - твоя библиотека знаний",
       meta: [
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         {
@@ -76,6 +86,7 @@ export default defineNuxtConfig({
         },
       ],
       link: [
+        { rel: "icon", type: "image/png", href: "/miniliogo.png" },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
           rel: "preconnect",

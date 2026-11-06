@@ -43,11 +43,16 @@ const FEATURES: readonly Feature[] = [
 
     <!-- Герой -->
     <section class="relative z-10 flex min-h-dvh flex-col items-center justify-center px-6 py-24">
-      <div class="flex w-full max-w-3xl flex-col items-center gap-16 py-4 text-center">
-        <h1 style="font-size: clamp(5rem, 20vw, 18rem); line-height: 0.82; letter-spacing: -0.06em"
-          class="font-black text-neutral-950">
-          ПОЛКА
-        </h1>
+      <div class="flex w-full max-w-3xl flex-col items-center gap-10 py-4 text-center">
+        <!-- Логотип (полная версия) вместо текстового заголовка -->
+        <img
+          src="/logofull.png"
+          alt="Полка — органайзер ссылок"
+          width="400"
+          height="400"
+          class="size-[400px] max-w-full select-none"
+          draggable="false"
+        >
 
         <p class="max-w-2xl text-balance text-xl font-medium leading-snug text-dim sm:text-2xl">
           Сохраняйте ссылки, видео и посты в одном месте — и находите нужное за

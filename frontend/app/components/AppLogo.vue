@@ -30,28 +30,14 @@ const props = withDefaults(
 </script>
 
 <template>
-  <UPopover
-    mode="hover"
-    :open-delay="120"
-    :content="{ side: 'right', sideOffset: 8 }"
-    :ui="{ content: 'px-2 py-1' }"
-  >
+  <UPopover mode="hover" :open-delay="120" :content="{ side: 'right', sideOffset: 8 }" :ui="{ content: 'px-2 py-1' }">
     <!--
       Триггер — ровно логотип: обёртка `w-fit` не растягивается и не сдвигает
       его ни по вертикали, ни по горизонтали. Отступ сверху — внешним классом.
     -->
-    <NuxtLink
-      to="/"
-      class="block w-fit cursor-pointer"
-      :class="props.class"
-      aria-label="Полка — на главную"
-    >
-      <span
-        class="block text-[15px] font-bold uppercase leading-none tracking-[-0.12em] text-black"
-        style="transform: scaleY(3)"
-      >
-        полка
-      </span>
+    <NuxtLink to="/" class="block w-fit cursor-pointer" :class="props.class" aria-label="Полка — на главную">
+      <img src="/miniliogo.png" alt="Полка" width="40" height="40" class="block size-[40px] select-none"
+        draggable="false">
     </NuxtLink>
 
     <template #content>

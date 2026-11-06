@@ -20,7 +20,7 @@ const isBoard = computed<boolean>(() => route.path === '/board')
     class="sticky top-0 flex h-dvh w-16 shrink-0 flex-col items-center gap-6 border-r border-line bg-surface py-3 sm:w-[68px]"
     aria-label="Основная навигация">
     <!-- Лого (с версией в поповере): только на десктопе, на мобильном оно в AppMobileHeader -->
-    <div class="mt-3 hidden w-full justify-center sm:flex">
+    <div class="hidden w-full justify-center sm:flex">
       <AppLogo />
     </div>
 
