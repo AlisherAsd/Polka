@@ -3,7 +3,6 @@
 const { history, pending, failure, send, clear } = useAiChat()
 const { isAuth } = useAuth()
 const { canUseAi } = useAiKey()
-const { openModal: openAuthModal } = useAuthModal()
 
 const prompt = ref<string>('')
 
@@ -15,25 +14,23 @@ function submit(): void {
 
 <template>
   <section class="mx-auto flex h-[calc(100dvh-56px)] w-full max-w-3xl flex-col px-4 py-4 sm:px-6">
-    <!-- Заглушка: нет входа или нет доступа к ИИ — та же подсказка, что на доске -->
-    <div v-if="!isAuth || !canUseAi" class="m-auto flex max-w-md flex-col items-center gap-3 text-center">
+    <!-- Гость: функции чата закрыты -->
+    <AuthGate
+      v-if="!isAuth"
+      feature="Чат"
+      description="AI-чат доступен после входа в аккаунт."
+    />
+
+    <!-- Вошёл, но нет доступа к ИИ: свой ключ или премиум -->
+    <div v-else-if="!canUseAi" class="m-auto flex max-w-md flex-col items-center gap-3 text-center">
       <UIcon name="i-lucide-lock" class="size-6 text-mute" />
-
-      <template v-if="!isAuth">
-        <p class="text-sm text-dim">Чат доступен после входа в аккаунт.</p>
-        <UButton type="button" color="primary" variant="solid" size="md" label="Войти" class="rounded-xl px-6"
-          @click="openAuthModal" />
-      </template>
-
-      <template v-else>
-        <p class="text-sm text-dim">
-          Для чата нужен доступ к ИИ: укажите свой ключ OpenRouter или оформите премиум.
-        </p>
-        <AiFeaturePopover feature="AI чат">
-          <UButton type="button" color="neutral" variant="outline" size="md" icon="i-lucide-key-round"
-            label="Настроить доступ" class="rounded-xl px-6" />
-        </AiFeaturePopover>
-      </template>
+      <p class="text-sm text-dim">
+        Для чата нужен доступ к ИИ: укажите свой ключ OpenRouter или оформите премиум.
+      </p>
+      <AiFeaturePopover feature="AI чат">
+        <UButton type="button" color="neutral" variant="outline" size="md" icon="i-lucide-key-round"
+          label="Настроить доступ" class="rounded-xl px-6" />
+      </AiFeaturePopover>
     </div>
 
     <template v-else>

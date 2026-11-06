@@ -24,9 +24,9 @@ const isBoard = computed<boolean>(() => route.path === '/board')
       <AppLogo />
     </div>
 
-    <!-- Кнопка добавления -->
+    <!-- Кнопка добавления: гостю открывает вход -->
     <UButton type="button" color="primary" variant="solid" size="md" icon="i-lucide-plus" square class="rounded-full"
-      aria-label="Добавить ссылку" @click="openModal" />
+      aria-label="Добавить ссылку" @click="isAuth ? openModal() : openAuthModal()" />
 
     <div class="h-px w-6 shrink-0 bg-line" aria-hidden="true" />
 
@@ -35,12 +35,7 @@ const isBoard = computed<boolean>(() => route.path === '/board')
       <UButton :to="'/'" color="neutral" :variant="isHome ? 'soft' : 'ghost'" size="md" icon="i-lucide-house" square
         class="rounded-xl" title="Главная" aria-label="Главная" :aria-current="isHome ? 'page' : undefined" />
 
-      <AuthRequiredPopover v-if="!isAuth" feature="Чат">
-        <UButton type="button" color="neutral" variant="ghost" size="md" icon="i-lucide-message-circle-question" square
-          class="rounded-xl opacity-40" aria-label="Чат" @click.prevent />
-      </AuthRequiredPopover>
-
-      <UButton v-else to="/chat" color="neutral" :variant="isChat ? 'soft' : 'ghost'" size="md"
+      <UButton to="/chat" color="neutral" :variant="isChat ? 'soft' : 'ghost'" size="md"
         icon="i-lucide-message-circle-question" square class="rounded-xl" title="Чат" aria-label="Чат"
         :aria-current="isChat ? 'page' : undefined" />
 

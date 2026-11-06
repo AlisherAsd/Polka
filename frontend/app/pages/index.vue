@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+const { isAuth } = useAuth()
+
 const { cards, loading, error, isEmpty, count, selectedIds, toggleSelection, removeCard } = useCards()
 
 /** Пока идёт хотя бы один запрос к внешнему источнику — показываем скелетоны. */
@@ -33,9 +35,16 @@ function handleDelete(id: string): void {
       {{ error }}
     </p>
 
+    <!-- Гость не видит карточки: функции закрыты до входа -->
+    <AuthGate
+      v-if="!isAuth"
+      feature="Карточки"
+      description="Сохраняйте ссылки, раскладывайте по папкам и получайте саммари — всё после входа в аккаунт."
+    />
+
     <!-- Загрузка: скелетоны той же сетки, чтобы не прыгала вёрстка -->
     <ul
-      v-if="showSkeletons"
+      v-else-if="showSkeletons"
       class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
       aria-busy="true"
       aria-live="polite"

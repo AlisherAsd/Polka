@@ -368,8 +368,15 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="relative min-h-0 flex-1 overflow-auto bg-app">
+      <AuthGate
+        v-if="!isAuth"
+        feature="Доска"
+        description="Раскладывать карточки и файлы по холсту можно после входа в аккаунт."
+        class="mt-10"
+      />
+
       <EmptyState
-        v-if="isEmpty"
+        v-else-if="isEmpty"
         title="На доске пока пусто"
         description="Добавьте ссылки на главной — они появятся здесь, чтобы раскладывать их по холсту."
         class="mx-auto max-w-md"

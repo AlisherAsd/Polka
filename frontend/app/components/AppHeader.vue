@@ -15,6 +15,7 @@ const { open: sidePanelOpen, toggleSidePanel } = useSidePanel()
 const { isAuth } = useAuth()
 const { canUseAi, key: aiKey } = useAiKey()
 const { openModal: openKeyModal } = useAiKeyModal()
+const { openModal: openAuthModal } = useAuthModal()
 
 /** Ключ введён — кнопка ключа подсвечивается. */
 const hasAiKey = computed<boolean>(() => aiKey.value.length > 0)
@@ -62,8 +63,8 @@ function handleNotifications(): void {
         aria-label="AI чат" class="shrink-0 rounded-xl" @click="handleAsk" />
     </div>
 
-    <!-- Правая группа: премиум, уведомления, свой ключ, добавить -->
-    <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+    <!-- Правая группа: премиум, уведомления, свой ключ, добавить (только после входа) -->
+    <div v-if="isAuth" class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
       <AppPremiumButton />
 
       <UButton color="neutral" variant="ghost" size="md" icon="i-lucide-bell" square aria-label="Уведомления"
@@ -85,6 +86,12 @@ function handleNotifications(): void {
 
       <UButton type="button" color="primary" variant="solid" size="md" icon="i-lucide-plus" label="Добавить"
         class="rounded-xl" @click="openModal" />
+    </div>
+
+    <!-- Гость: только вход -->
+    <div v-else class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+      <UButton type="button" color="primary" variant="solid" size="md" icon="i-lucide-log-in" label="Войти"
+        class="rounded-xl" @click="openAuthModal" />
     </div>
   </header>
 </template>

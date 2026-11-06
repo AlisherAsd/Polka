@@ -44,7 +44,15 @@ function handleToggle(id: string): void {
 
     <p v-if="error" class="px-2 text-xs text-[#b3261e]">{{ error }}</p>
 
-    <div class="min-h-0 flex-1 overflow-y-auto">
+    <!-- Гость: файлы и папки скрыты -->
+    <AuthGate
+      v-if="!isAuth"
+      feature="Файлы"
+      description="Папки и заметки доступны после входа."
+      compact
+    />
+
+    <div v-else class="min-h-0 flex-1 overflow-y-auto">
       <FileTreeNode
         v-for="node in tree"
         :key="node.id"
