@@ -26,11 +26,27 @@ export default defineEventHandler(async (event) => {
     : null
 
   const now = new Date().toISOString()
-  const existing = await db.first<ExistingRow>(
-    'SELECT id FROM board_nodes WHERE item_id = ? OR note_id = ?',
-    key,
-    key,
-  )
+
+  let existing: ExistingRow | null
+
+  try {
+    existing = await db.first<ExistingRow>(
+      'SELECT id FROM board_nodes WHERE item_id = ? OR note_id = ?',
+      key,
+      key,
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+
+    if (/no such table/i.test(message)) {
+      throw createError({
+        statusCode: 503,
+        message: 'Таблица доски не создана: примените миграции (make migrate-remote)',
+      })
+    }
+
+    throw error
+  }
 
   // Узел мог появиться раньше — тогда обновляем. Новый создаём по id
   // карточки/заметки: проверяем, что такая сущность действительно есть.

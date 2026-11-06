@@ -14,7 +14,22 @@ interface NodeRow {
 
 export default defineEventHandler(async (event) => {
   const db = getDatabase(event)
-  const rows = await db.all<NodeRow>('SELECT * FROM board_nodes ORDER BY created_at ASC')
+
+  let rows: NodeRow[]
+
+  try {
+    rows = await db.all<NodeRow>('SELECT * FROM board_nodes ORDER BY created_at ASC')
+  } catch (error) {
+    // Таблицы ещё нет (миграция 0004 не применена к этой базе) — доска пустая,
+    // а фронт работает на раскладке по умолчанию вместо падения с 500.
+    const message = error instanceof Error ? error.message : String(error)
+
+    if (/no such table/i.test(message)) {
+      return { nodes: [], migration: 'pending' }
+    }
+
+    throw error
+  }
 
   const nodes = rows.map((row) => {
     const node: {
