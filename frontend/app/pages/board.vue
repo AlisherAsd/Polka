@@ -3,60 +3,45 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Card } from '~/types/card'
 
 /**
- * Доска со свободно перетаскиваемыми карточками, общим зумом и выделением.
- * Позиции и масштаб хранятся только в памяти страницы (сессионно).
+ * Доска: карточки и файлы (заметки) — перетаскиваемые узлы с общим зумом
+ * и выделением. Позиции узлов сохраняются в D1 (`/api/board`), масштаб
+ * остаётся сессионным. Связи «карточка ↔ файлы» выводятся из `notes.item_id`.
  */
-const { cards, init } = useCards()
+const { cards } = useCards()
+const { placed, links, init: initBoard, moveNode } = useBoard()
 const { scale, zoomIn, zoomOut, reset, setScale } = useBoardZoom()
 const { openModal: openSummarize } = useSummarizeModal()
 
 /** Саммари доступно только после входа. */
 const { isAuth } = useAuth()
 
-interface PlacedCard {
-  card: Card
-  x: number
-  y: number
-}
-
 const CARD_WIDTH = 200
-const COLUMN_GAP = 24
-const ROW_GAP = 24
-const COLUMNS = 4
 const CARD_HEIGHT = 220
+const COLUMN_GAP = 24
+const COLUMNS = 4
 
-/** Логический размер холста в px до масштабирования. */
-const CANVAS_WIDTH = COLUMNS * (CARD_WIDTH + COLUMN_GAP) + COLUMN_GAP
-const CANVAS_HEIGHT = 1600
+/** Логический размер холста: растёт вместе с узлами, чтобы всё было доступно. */
+const CANVAS_WIDTH = computed<number>(() => {
+  const right = placed.value.reduce((max, node) => Math.max(max, node.x + node.width), 0)
 
-/** Стартовая раскладка «плиткой», чтобы карточки не лежали друг на друге. */
-const placed = ref<PlacedCard[]>([])
-
-/** id выделенных карточек. */
-const selectedIds = ref<string[]>([])
-
-function layoutCards(list: readonly Card[]): void {
-  placed.value = list.map((card, index) => ({
-    card,
-    x: (index % COLUMNS) * (CARD_WIDTH + COLUMN_GAP) + COLUMN_GAP,
-    y: Math.floor(index / COLUMNS) * (CARD_ROW_PITCH) + COLUMN_GAP,
-  }))
-}
-
-/** Шаг по вертикали: чуть больше карточки, чтобы было где выделять пустотой. */
-const CARD_ROW_PITCH = CARD_HEIGHT + ROW_GAP
-
-/**
- * Данные грузятся плагином при старте приложения (`plugins/bootstrap.client.ts`).
- * Здесь только перекладываем карточки на доску — и в `onMounted` (если данные
- * уже есть), и по `watch` (если ответ придёт позже).
- */
-onMounted(() => {
-  layoutCards(cards.value)
+  return Math.max(COLUMNS * (CARD_WIDTH + COLUMN_GAP) + COLUMN_GAP, right + COLUMN_GAP * 2)
 })
 
-watch(cards, (list) => {
-  layoutCards(list)
+const CANVAS_HEIGHT = computed<number>(() => {
+  const bottom = placed.value.reduce(
+    (max, node) => Math.max(max, node.y + (node.height ?? CARD_HEIGHT)),
+    0,
+  )
+
+  return Math.max(1200, bottom + COLUMN_GAP * 2)
+})
+
+/** id выделенных узлов (карточек и файлов). */
+const selectedIds = ref<string[]>([])
+
+/** Доска грузится вместе с карточками: позиции из D1, раскладка по умолчанию. */
+onMounted(() => {
+  void initBoard()
 })
 
 const isEmpty = computed<boolean>(() => placed.value.length === 0)
@@ -69,9 +54,12 @@ const hint = computed<string>(() =>
 )
 const percent = computed<number>(() => Math.round(scale.value * 100))
 
+/** Только карточки из выделения — их отправляем в суммаризацию. */
 const selectedCards = computed<Card[]>(() =>
   placed.value
-    .filter((item) => selectedIds.value.includes(item.card.id))
+    .filter((item): item is Extract<typeof item, { kind: 'card' }> =>
+      item.kind === 'card' && selectedIds.value.includes(item.key),
+    )
     .map((item) => item.card),
 )
 
@@ -96,44 +84,109 @@ function toggleCard(id: string, additive: boolean): void {
     selectedIds.value.length === 1 && selectedIds.value[0] === id ? [] : [id]
 }
 
-// --- Групповое перетаскивание ---
+// --- Перетаскивание узлов (карточек и файлов) ---
+
+/** Ссылки на узлы: нужны, чтобы сдвигать группу и сохранять позиции. */
+type NodeRef = { setPosition: (x: number, y: number) => void }
+const nodeRefs = new Map<string, NodeRef>()
 
 let dragOrigin: Map<string, { x: number; y: number }> | null = null
 
-function handleDragStart(id: string): void {
-  if (!selectedIds.value.includes(id)) {
-    selectedIds.value = [id]
+function setNodeRef(key: string, component: unknown): void {
+  if (component) {
+    nodeRefs.set(key, component as NodeRef)
+  } else {
+    nodeRefs.delete(key)
+  }
+}
+
+function handleDragStart(key: string): void {
+  if (!selectedIds.value.includes(key)) {
+    selectedIds.value = [key]
   }
 
   dragOrigin = new Map(
     placed.value
-      .filter((item) => selectedIds.value.includes(item.card.id))
-      .map((item) => [item.card.id, { x: item.x, y: item.y }]),
+      .filter((item) => selectedIds.value.includes(item.key))
+      .map((item) => [item.key, { x: item.x, y: item.y }]),
   )
 }
 
-function handleDrag(id: string, dx: number, dy: number): void {
+function handleDrag(key: string, dx: number, dy: number): void {
   if (!dragOrigin) {
     return
   }
 
-  placed.value = placed.value.map((item) => {
-    const origin = dragOrigin?.get(item.card.id)
-
-    if (!origin) {
-      return item
+  for (const [otherKey, origin] of dragOrigin) {
+    if (otherKey === key) {
+      continue
     }
 
-    return { ...item, x: origin.x + dx, y: origin.y + dy }
-  })
+    nodeRefs.get(otherKey)?.setPosition(origin.x + dx, origin.y + dy)
+  }
 
-  // Синхронизируем локальную позицию лидера (её меняет сам компонент).
-  void id
+  // Линии связи идут за блоками во время перетаскивания.
+  tick.value++
 }
 
-function handleDragEnd(): void {
+/** По окончании переноса фиксируем позиции всех сдвинутых узлов в D1. */
+function handleDragEnd(key: string, dx: number, dy: number): void {
+  if (dragOrigin) {
+    for (const [otherKey, origin] of dragOrigin) {
+      moveNode(otherKey, Math.round(origin.x + dx), Math.round(origin.y + dy))
+    }
+  }
+
   dragOrigin = null
 }
+
+// --- Связи между карточками и файлами ---
+
+/** Тик, который дёргаем после перетаскивания, чтобы пересчитать линии. */
+const tick = ref<number>(0)
+
+function positionOfKey(key: string): { x: number; y: number; width: number; height?: number } | undefined {
+  const node = placed.value.find((item) => item.key === key)
+
+  return node ? { x: node.x, y: node.y, width: node.width, height: node.height } : undefined
+}
+
+/**
+ * Линии от правого края карточки к левому краю файла. Точки берём из DOM-рефов,
+ * чтобы линия шла за блоком во время перетаскивания, а не только после него.
+ */
+const edges = computed(() => {
+  void tick.value
+
+  const fallbackHeight = CARD_HEIGHT
+
+  return links.value.flatMap((link) => {
+    const fromRef = nodeRefs.get(link.itemId)
+    const toRef = nodeRefs.get(link.noteId)
+    const fromBase = positionOfKey(link.itemId)
+    const toBase = positionOfKey(link.noteId)
+
+    if (!fromBase || !toBase) {
+      return []
+    }
+
+    const from = (fromRef as unknown as { position?: () => { x: number; y: number; width: number; height: number } })?.position?.()
+      ?? { ...fromBase, height: fromBase.height ?? fallbackHeight }
+    const to = (toRef as unknown as { position?: () => { x: number; y: number; width: number; height: number } })?.position?.()
+      ?? { ...toBase, height: toBase.height ?? 120 }
+
+    const x1 = from.x + from.width
+    const y1 = from.y + from.height / 2
+    const x2 = to.x
+    const y2 = to.y + to.height / 2
+    const mid = (x1 + x2) / 2
+
+    return [{
+      key: `${link.itemId}:${link.noteId}`,
+      d: `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`,
+    }]
+  })
+})
 
 // --- Рамка выделения на пустом месте холста ---
 
@@ -189,11 +242,11 @@ function moveMarquee(event: PointerEvent): void {
     .filter(
       (item) =>
         item.x < x + w &&
-        item.x + CARD_WIDTH > x &&
+        item.x + item.width > x &&
         item.y < y + h &&
-        item.y + CARD_HEIGHT > y,
+        item.y + (item.height ?? CARD_HEIGHT) > y,
     )
-    .map((item) => item.card.id)
+    .map((item) => item.key)
 
   selectedIds.value = additiveSelect.value
     ? [...new Set([...baseSelection, ...hit])]
@@ -309,6 +362,28 @@ onBeforeUnmount(() => {
         }"
         @pointerdown.self="startMarquee"
       >
+        <!--
+          Связи «карточка → файлы»: выводятся из данных (`notes.item_id`),
+          поэтому отдельного графа нет. SVG лежит под узлами и не ловит клики.
+          Позиции пересчитываются при перетаскивании (через `tick`).
+        -->
+        <svg
+          class="pointer-events-none absolute inset-0 z-0"
+          :width="CANVAS_WIDTH"
+          :height="CANVAS_HEIGHT"
+          aria-hidden="true"
+        >
+          <path
+            v-for="edge in edges"
+            :key="edge.key"
+            :d="edge.d"
+            fill="none"
+            stroke="var(--color-line)"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+
         <div
           v-if="marquee"
           class="pointer-events-none absolute z-10 border border-accent bg-accent/10"
@@ -320,19 +395,38 @@ onBeforeUnmount(() => {
           }"
         />
 
-        <DraggableCardWrapper
-          v-for="item in placed"
-          :key="item.card.id"
-          :card="item.card"
-          :start-x="item.x"
-          :start-y="item.y"
-          :width="CARD_WIDTH"
-          :selected="selectedIds.includes(item.card.id)"
-          @pick="toggleCard"
-          @drag-start="handleDragStart"
-          @drag="handleDrag"
-          @drag-end="handleDragEnd"
-        />
+        <!-- Карточки -->
+        <template v-for="item in placed" :key="`${item.kind}-${item.key}`">
+          <DraggableCardWrapper
+            v-if="item.kind === 'card'"
+            :ref="(component) => setNodeRef(item.key, component)"
+            :card="item.card"
+            :start-x="item.x"
+            :start-y="item.y"
+            :width="item.width"
+            :selected="selectedIds.includes(item.key)"
+            @pick="toggleCard"
+            @drag-start="handleDragStart"
+            @drag="handleDrag"
+            @drag-end="handleDragEnd"
+          />
+
+          <!-- Файлы (заметки): фиксированный блок со скроллом внутри -->
+          <DraggableFileNode
+            v-else
+            :ref="(component) => setNodeRef(item.key, component)"
+            :note="item.note"
+            :start-x="item.x"
+            :start-y="item.y"
+            :width="item.width"
+            :height="item.height"
+            :selected="selectedIds.includes(item.key)"
+            @pick="toggleCard"
+            @drag-start="handleDragStart"
+            @drag="handleDrag"
+            @drag-end="handleDragEnd"
+          />
+        </template>
       </div>
     </div>
 

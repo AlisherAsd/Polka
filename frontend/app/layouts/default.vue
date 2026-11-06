@@ -37,26 +37,17 @@ const { open } = useSidePanel()
       -->
       <div
         class="hidden shrink-0 overflow-hidden transition-[width,translate,opacity] duration-300 ease-in-out will-change-[width] sm:block"
-        :class="open ? 'w-56 border-r border-line opacity-100' : 'w-0 border-r-0 opacity-0'"
-      >
-        <SecondSidebar
-          class="transition-transform duration-300 ease-in-out"
-          :class="open ? 'translate-x-0' : '-translate-x-56'"
-        />
+        :class="open ? 'w-56 border-r border-line opacity-100' : 'w-0 border-r-0 opacity-0'">
+        <SecondSidebar class="transition-transform duration-300 ease-in-out"
+          :class="open ? 'translate-x-0' : '-translate-x-56'" />
       </div>
 
       <!-- Мобильная шторка файлов -->
-      <div
-        v-if="open"
-        class="fixed inset-0 z-40 bg-black/40 sm:hidden"
-        aria-hidden="true"
-        @click="open = false"
-      />
+      <div v-if="open" class="fixed inset-0 z-40 bg-black/40 sm:hidden" aria-hidden="true" @click="open = false" />
 
       <div
         class="fixed inset-y-0 right-0 z-50 w-64 overflow-hidden border-l border-line transition-transform duration-300 ease-in-out sm:hidden"
-        :class="open ? 'translate-x-0' : 'translate-x-full'"
-      >
+        :class="open ? 'translate-x-0' : 'translate-x-full'">
         <SecondSidebar class="h-full w-full" />
       </div>
 

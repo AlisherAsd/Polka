@@ -49,12 +49,12 @@ function handleNotifications(): void {
         }" />
 
       <AuthRequiredPopover v-if="!isAuth" feature="Чат">
-        <UButton color="neutral" variant="outline" size="md" icon="i-lucide-message-circle-question" label="Ask chat"
-          aria-label="Ask chat" class="shrink-0 rounded-xl opacity-40" @click.prevent />
+        <UButton color="neutral" variant="outline" size="md" icon="i-lucide-message-circle-question" label="AI чат"
+          aria-label="AI чат" class="shrink-0 rounded-xl opacity-40" @click.prevent />
       </AuthRequiredPopover>
 
-      <UButton v-else color="neutral" variant="outline" size="md" icon="i-lucide-message-circle-question" label="Ask chat"
-        aria-label="Ask chat" class="shrink-0 rounded-xl" @click="handleAsk" />
+      <UButton v-else color="neutral" variant="outline" size="md" icon="i-lucide-message-circle-question" label="AI чат"
+        aria-label="AI чат" class="shrink-0 rounded-xl" @click="handleAsk" />
     </div>
 
     <!-- Правая группа -->

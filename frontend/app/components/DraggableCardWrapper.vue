@@ -25,7 +25,8 @@ const emit = defineEmits<{
   dragStart: [id: string]
   /** Смещение в логических px доски. */
   drag: [id: string, dx: number, dy: number]
-  dragEnd: []
+  /** Конец переноса: смещение в логических px, чтобы родитель сохранил позиции. */
+  dragEnd: [id: string, dx: number, dy: number]
 }>()
 
 const el = ref<HTMLElement | null>(null)
@@ -82,14 +83,13 @@ function handleUp(): void {
     emit('pick', props.card.id, false)
   }
 
+  if (dragged && originStart) {
+    emit('dragEnd', props.card.id, x.value - originStart.x, y.value - originStart.y)
+  }
+
   pointerStart = null
   originStart = null
   isDragging.value = false
-
-  if (dragged) {
-    emit('dragEnd')
-  }
-
   dragged = false
 }
 
