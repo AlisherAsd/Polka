@@ -8,7 +8,9 @@
 export default defineNuxtPlugin(() => {
   const cards = useCards()
   const files = useFiles()
+  const board = useBoard()
 
   // Не ждём: страницы рендерятся сразу, данные подъезжают по мере ответа.
-  void Promise.allSettled([cards.init(), files.init()])
+  // Доска грузится здесь же, чтобы прямой заход на `/board` сразу знал позиции.
+  void Promise.allSettled([cards.init(), files.init(), board.init()])
 })

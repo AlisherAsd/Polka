@@ -7,8 +7,8 @@ import type { Card } from '~/types/card'
 
 /** Размеры блоков доски в логических px. */
 export const BOARD_CARD_WIDTH = 200
-export const BOARD_FILE_WIDTH = 320
-export const BOARD_FILE_HEIGHT = 260
+export const BOARD_FILE_WIDTH = 280
+export const BOARD_FILE_HEIGHT = 220
 
 /** Узел доски, готовый к отрисовке. */
 export interface PlacedCardNode {
@@ -42,7 +42,7 @@ interface BoardState {
 }
 
 let sharedState: BoardState | null = null
-let loaded = false
+let loadPromise: Promise<void> | null = null
 
 function ensureState(): BoardState {
   if (!sharedState) {
@@ -145,23 +145,35 @@ export function useBoard() {
       .map((note) => ({ itemId: note.itemId as string, noteId: note.id })),
   )
 
-  /** Первичная загрузка позиций (один раз за вкладку). */
+  /**
+   * Загрузка позиций с сервера. Вызывать можно многократно: одновременно идёт
+   * один запрос, повторный вызов после завершения перечитывает доску.
+   */
   async function init(): Promise<void> {
-    if (!import.meta.client || loaded) {
+    if (!import.meta.client) {
       return
     }
 
-    loaded = true
+    if (loadPromise) {
+      return loadPromise
+    }
+
     state.loading.value = true
     state.error.value = null
 
-    try {
-      state.nodes.value = await fetchBoard()
-    } catch {
-      state.error.value = 'Не удалось загрузить доску'
-    } finally {
-      state.loading.value = false
-    }
+    loadPromise = fetchBoard()
+      .then((nodes) => {
+        state.nodes.value = nodes
+      })
+      .catch(() => {
+        state.error.value = 'Не удалось загрузить доску'
+      })
+      .finally(() => {
+        state.loading.value = false
+        loadPromise = null
+      })
+
+    return loadPromise
   }
 
   /** Запоминает позицию локально и сохраняет её в D1 (ошибки не показываем). */
