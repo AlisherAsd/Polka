@@ -1,4 +1,5 @@
 import type { Card, CardType, ParsedLink } from '~/types/card'
+import { createId } from '~/utils/id'
 
 /**
  * Клиентские парсеры ссылок.
@@ -403,7 +404,7 @@ export async function parseLink(url: string): Promise<Card> {
   }
 
   const card: Card = {
-    id: crypto.randomUUID(),
+    id: createId(),
     url: normalizedUrl,
     type,
     title: parsed.title,

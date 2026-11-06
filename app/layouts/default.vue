@@ -11,13 +11,22 @@ const { open } = useSidePanel()
     `AppMobileHeader` и `AppMobileMenu`.
   -->
   <div class="layout-areas min-h-dvh bg-app">
-    <!-- Десктоп -->
-    <AppSidebar class="layout-area-sidebar hidden sm:flex" />
+    <!--
+      Область `header` занимает ровно один элемент: `hidden` на самом
+      компоненте не убирает его из grid-зоны (там остаются оба хедера
+      и растягивают строку), поэтому прячем через display: none на обёртке.
+    -->
+    <div class="layout-area-sidebar hidden sm:flex">
+      <AppSidebar />
+    </div>
 
-    <AppHeader class="layout-area-header hidden sm:flex" />
+    <div class="layout-area-header hidden sm:flex">
+      <AppHeader class="w-full" />
+    </div>
 
-    <!-- Мобильные -->
-    <AppMobileHeader class="layout-area-header sm:hidden" />
+    <div class="layout-area-header flex sm:hidden">
+      <AppMobileHeader class="w-full" />
+    </div>
 
     <AppMobileMenu />
 
@@ -48,7 +57,7 @@ const { open } = useSidePanel()
         class="fixed inset-y-0 right-0 z-50 w-64 overflow-hidden border-l border-line transition-transform duration-300 ease-in-out sm:hidden"
         :class="open ? 'translate-x-0' : 'translate-x-full'"
       >
-        <SecondSidebar class="h-full w-64" />
+        <SecondSidebar class="h-full w-full" />
       </div>
 
       <div class="min-w-0 flex-1 overflow-x-hidden">

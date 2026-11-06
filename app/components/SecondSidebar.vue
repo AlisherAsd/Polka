@@ -24,7 +24,7 @@ function handleToggle(id: string): void {
 
 <template>
   <aside
-    class="flex h-full w-56 shrink-0 flex-col gap-0.5 bg-surface p-3"
+    class="flex h-full w-full flex-col gap-0.5 bg-surface p-3"
     aria-label="Файлы"
   >
     <p class="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-mute">

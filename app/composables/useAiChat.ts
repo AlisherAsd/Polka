@@ -1,3 +1,5 @@
+import { createId } from '~/utils/id'
+
 /** Состояние чата с ИИ: история на текущую сессию (в памяти). */
 export interface ChatEntry {
   id: string
@@ -19,7 +21,7 @@ export function useAiChat() {
     }
 
     failure.value = ''
-    history.value.push({ id: crypto.randomUUID(), role: 'user', content: prompt })
+    history.value.push({ id: createId(), role: 'user', content: prompt })
     pending.value = true
 
     try {
@@ -29,7 +31,7 @@ export function useAiChat() {
       })
 
       history.value.push({
-        id: crypto.randomUUID(),
+        id: createId(),
         role: 'assistant',
         content: res.text,
       })
