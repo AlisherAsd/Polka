@@ -8,6 +8,18 @@
  */
 import { APP_VERSION, RELEASE } from '~/utils/release'
 
+/**
+ * На телефоне попап не помещается — там оставляем только версию, без описания.
+ * На сервере считаем «мобильным», чтобы SSR-разметка (только версия) совпадала
+ * с первым клиентским рендером на телефоне и не давала hydration mismatch.
+ */
+const isMobile = ref<boolean>(true)
+
+// После монтирования уточняем платформу: на десктопе появляется описание.
+onMounted(() => {
+  isMobile.value = isMobileViewport()
+})
+
 const props = withDefaults(
   defineProps<{
     /** Дополнительные классы для обёртки (например, отступ сверху). */
@@ -43,9 +55,11 @@ const props = withDefaults(
     </NuxtLink>
 
     <template #content>
-      <div class="flex flex-col gap-0.5 text-[11px] leading-tight">
+      <div class="flex max-w-56 flex-col gap-0.5 text-[11px] leading-tight">
         <p class="font-semibold text-ink">v{{ APP_VERSION }}</p>
-        <p class="text-dim">feature: "{{ RELEASE.latest }}"</p>
+
+        <!-- На мобильном описание скрыто: в тесноте оно не помещается -->
+        <p v-if="!isMobile" class="text-dim">feature: "{{ RELEASE.latest }}"</p>
       </div>
     </template>
   </UPopover>
