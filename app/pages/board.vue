@@ -210,10 +210,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="flex h-[calc(100dvh-56px)] w-full flex-col">
-    <header class="flex items-center gap-2 px-4 py-2 sm:px-8">
-      <h1 class="text-lg font-semibold text-ink">Доска</h1>
-      <span class="text-xs text-mute">
+  <section class="flex min-h-0 w-full flex-1 flex-col">
+    <!-- Шапка: на мобильном переносится в две строки, зум-контролы уходят вниз -->
+    <header class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8">
+      <h1 class="shrink-0 text-base font-semibold text-ink sm:text-lg">Доска</h1>
+      <span class="min-w-0 truncate text-xs text-mute">
         {{
           selectedIds.length > 0
             ? `выбрано: ${selectedIds.length}`
@@ -221,7 +222,7 @@ onBeforeUnmount(() => {
         }}
       </span>
 
-      <div class="ml-auto flex items-center gap-1">
+      <div class="ml-auto flex shrink-0 items-center gap-1">
         <UButton
           type="button"
           color="neutral"
@@ -239,7 +240,7 @@ onBeforeUnmount(() => {
           max="200"
           step="10"
           aria-label="Масштаб доски"
-          class="w-28 cursor-pointer accent-[var(--color-accent)]"
+          class="w-20 cursor-pointer accent-[var(--color-accent)] sm:w-28"
           @input="handleSlider"
         />
         <UButton

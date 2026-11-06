@@ -96,24 +96,20 @@
     grid-area: main;
   }
 
+  /*
+   * Мобильная раскладка: рейки нет, навигация живёт в шторке (AppMobileMenu),
+   * поэтому контент занимает всю ширину и не требует компенсирующего отступа.
+   */
   @media (max-width: 39.9375rem) {
     .layout-areas {
       grid-template-areas:
-        "header header"
-        "main main";
+        "header"
+        "main";
       grid-template-columns: minmax(0, 1fr);
     }
 
     .layout-area-sidebar {
-      position: fixed;
-      inset-block: 0;
-      inset-inline-start: 0;
-      z-index: 30;
-    }
-
-    .layout-area-header,
-    .layout-area-main {
-      padding-inline-start: 4rem;
+      display: none;
     }
   }
 }
