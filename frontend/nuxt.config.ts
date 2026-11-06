@@ -1,4 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
+// В `nuxt.config.ts` нет типов Node.js, поэтому читаем env без `process`.
+const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
+
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
@@ -7,10 +11,12 @@ export default defineNuxtConfig({
   // поэтому собственный `vite.plugins: [tailwindcss()]` больше не нужен.
   modules: ["@nuxt/ui"],
 
-  // Только сервер: ключ не попадает в клиентский бандл.
-  // В .env переменная должна называться NUXT_OPENROUTER_KEY (или NITRO_OPENROUTER_KEY).
-  runtimeConfig: {
-    openrouterKey: "",
+  // Бэкенд (Fastify) живёт отдельным приложением в ../backend.
+  // Порог задаётся переменной BACKEND_PORT, по умолчанию 3001.
+  routeRules: {
+    "/api/**": {
+      proxy: `http://localhost:${env.BACKEND_PORT ?? 3001}/api/**`,
+    },
   },
 
   css: ["~/assets/css/main.css"],

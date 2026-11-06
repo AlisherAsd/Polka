@@ -29,3 +29,6 @@ logs
 # Локальный референс дизайна
 REFERENCE.png
 ref/
+
+# Backend env
+backend/.env
