@@ -6,6 +6,7 @@
 const { selectedCount, clearSelection, removeSelected } = useCards()
 const { openModal: openTagsModal } = useTagsModal()
 const { openModal: openFolderModal } = useFolderModal()
+const { isAuth } = useAuth()
 </script>
 
 <template>
@@ -35,7 +36,20 @@ const { openModal: openFolderModal } = useFolderModal()
         @click="openTagsModal"
       />
 
+      <AuthRequiredPopover v-if="!isAuth" feature="Папки">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-folder-plus"
+          label="В папку"
+          class="rounded-lg opacity-40"
+          @click.prevent
+        />
+      </AuthRequiredPopover>
+
       <UButton
+        v-else
         color="neutral"
         variant="ghost"
         size="sm"

@@ -2,6 +2,16 @@
 @import "@nuxt/ui";
 
 /*
+ * Nuxt UI берёт `bg-primary`, `text-primary`, `ring-primary` из `--ui-primary`.
+ * Автогенерация из `@theme` в проекте не срабатывает, поэтому объявляем
+ * переменные явно — иначе `bg-primary` падает в браузерный дефолт (зелёный).
+ */
+@theme static {
+  --ui-primary: var(--color-primary-500);
+  --ui-neutral: var(--color-neutral-500);
+}
+
+/*
  * Палитры Nuxt UI (primary/neutral) — в формате Tailwind v4 `@theme`.
  * Отдельный `app/app.config.ts` не нужен: Nuxt UI v4 читает цвета прямо
  * из CSS-переменных.

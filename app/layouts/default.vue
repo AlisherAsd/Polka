@@ -44,5 +44,7 @@ const { open } = useSidePanel()
     <AppTagsModal />
 
     <AppFolderModal />
+
+    <AppAuthModal />
   </div>
 </template>

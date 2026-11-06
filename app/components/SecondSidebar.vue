@@ -10,7 +10,14 @@ import { FILE_TREE } from '~/data/fileTree'
 /** Раскрытые папки дерева. */
 const expanded = ref<Record<string, boolean>>({})
 
+/** Папки доступны только после входа. */
+const { isAuth } = useAuth()
+
 function handleToggle(id: string): void {
+  if (!isAuth.value) {
+    return
+  }
+
   expanded.value = { ...expanded.value, [id]: !expanded.value[id] }
 }
 </script>
