@@ -8,7 +8,7 @@
     "dev": "tauri dev",
     "build": "tauri build",
     "tauri": "tauri",
-    "icons": "tauri icon ../frontend/public/logo-icon.png || echo 'нет исходной иконки — используется дефолт Tauri'"
+    "icons": "tauri icon ../../frontend/public/logofull.png"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.1.0"

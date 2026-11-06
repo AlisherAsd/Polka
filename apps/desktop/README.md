@@ -29,6 +29,22 @@ npm run dev     # поднимает Nuxt dev (:3000) и окно WKWebView
 Origin нативного WebView (`tauri://localhost` на macOS) должен быть разрешён
 в `CORS_ORIGINS` воркера на Cloudflare.
 
+## Иконка приложения
+
+Иконка в Dock и на рабочем столе берётся из `apps/desktop/src-tauri/icons/`.
+Меняется одной командой из исходной картинки (лучше 1024×1024 PNG с прозрачностью):
+
+```bash
+cd apps/desktop
+npm run icons                 # tauri icon ../../frontend/public/logofull.png
+npm run build                 # пересобрать .app
+cp -R src-tauri/target/release/bundle/macos/Полка.app /Applications/
+```
+
+- `npm run icons` пересоздаёт весь набор (`icon.icns`, `icon.ico`, PNG-размеры, а также android/ios) из исходника.
+- Источник задан в `package.json` → `scripts.icons`; чтобы поставить другую картинку, положи её в `frontend/public/` и поправь путь, либо запусти напрямую: `npx tauri icon путь/иконка.png`.
+- Если в Dock осталась старая иконка, macOS кэширует её: удали приложение из `/Applications`, затем `killall Dock` и скопируй новое `.app`.
+
 ## Подпись
 
 Без Apple Developer ID приложение запускается только локально.
