@@ -2,6 +2,7 @@
 // Тело: { title, content, folderId?, itemId?, url? }.
 import { folderExists, toNote, type NoteRow } from '../../utils/notes'
 import { optionalText } from '../../utils/items'
+import { scopeFor } from '../../utils/scope'
 
 export default defineEventHandler(async (event) => {
   const body = (await readBody<Record<string, unknown>>(event)) ?? {}
@@ -20,8 +21,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = dbOf(event)
+  const scope = await scopeFor(event)
 
-  if (folderId && !(await folderExists(db, folderId))) {
+  if (folderId && !(await folderExists(db, folderId, scope.userId))) {
     throw createError({ statusCode: 404, message: 'Папка не найдена' })
   }
 
@@ -29,8 +31,8 @@ export default defineEventHandler(async (event) => {
   const id = crypto.randomUUID()
 
   await db.run(
-    `INSERT INTO notes (id, folder_id, item_id, title, content, url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO notes (id, folder_id, item_id, title, content, url, created_at, updated_at, user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     folderId,
     itemId,
@@ -39,6 +41,7 @@ export default defineEventHandler(async (event) => {
     url,
     now,
     now,
+    scope.userId,
   )
 
   const row = await db.first<NoteRow>('SELECT * FROM notes WHERE id = ?', id)

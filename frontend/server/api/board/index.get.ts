@@ -1,5 +1,6 @@
 // GET /api/board — расположение узлов доски (карточек и заметок-файлов).
 import { getDatabase } from '../../utils/db'
+import { scopeFor } from '../../utils/scope'
 
 interface NodeRow {
   id: string
@@ -16,9 +17,13 @@ export default defineEventHandler(async (event) => {
   const db = getDatabase(event)
 
   let rows: NodeRow[]
+  const scope = await scopeFor(event)
 
   try {
-    rows = await db.all<NodeRow>('SELECT * FROM board_nodes ORDER BY created_at ASC')
+    rows = await db.all<NodeRow>(
+      `SELECT * FROM board_nodes WHERE ${scope.sql} ORDER BY created_at ASC`,
+      ...scope.params,
+    )
   } catch (error) {
     // Таблицы ещё нет (миграция 0004 не применена к этой базе) — доска пустая,
     // а фронт работает на раскладке по умолчанию вместо падения с 500.

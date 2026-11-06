@@ -1,6 +1,7 @@
 // POST /api/items — создание карточки.
 import { getDatabase } from '../../utils/db'
 import { optionalText, parseType, parseUrl, type Item, type ItemBody } from '../../utils/items'
+import { currentUserId } from '../../utils/scope'
 
 export default defineEventHandler(async (event) => {
   const body = (await readBody<ItemBody>(event)) ?? {}
@@ -43,10 +44,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = getDatabase(event)
+  const userId = await currentUserId(event)
 
   await db.run(
-    `INSERT INTO items (id, type, url, title, thumbnail, summary, content, file_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (id, type, url, title, thumbnail, summary, content, file_id, created_at, updated_at, user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     item.id,
     item.type,
     item.url ?? null,
@@ -57,6 +59,7 @@ export default defineEventHandler(async (event) => {
     item.fileId ?? null,
     item.createdAt,
     item.updatedAt,
+    userId,
   )
 
   setResponseStatus(event, 201)

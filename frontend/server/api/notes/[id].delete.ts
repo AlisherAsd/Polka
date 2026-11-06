@@ -2,7 +2,12 @@
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? ''
   const db = dbOf(event)
-  const changes = await db.run('DELETE FROM notes WHERE id = ?', id)
+  const scope = await scopeFor(event)
+  const changes = await db.run(
+    `DELETE FROM notes WHERE id = ? AND ${scope.sql}`,
+    id,
+    ...scope.params,
+  )
 
   if (changes === 0) {
     throw createError({ statusCode: 404, message: 'Заметка не найдена' })

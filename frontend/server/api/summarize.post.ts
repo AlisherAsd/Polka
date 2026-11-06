@@ -66,6 +66,7 @@ export default defineEventHandler(async (event) => {
 
   // Премиум использует серверный ключ, остальные — свой из заголовка.
   const account = await userFromEvent(event)
+  const ownerId = account?.id ?? null
   const text = await chat(event, [
     { role: 'system', content: system },
     { role: 'user', content: userMessage },
@@ -94,11 +95,13 @@ export default defineEventHandler(async (event) => {
       const content = source ? `${text.trim()}\n\nИсточник: ${source}` : text.trim()
 
       // Повторная суммаризация той же карточки обновляет её файл, а не плодит копии.
+      // Ищем файл саммари только среди заметок этого пользователя.
       const existing = itemId
         ? await db.first<{ id: string }>(
-          'SELECT id FROM notes WHERE item_id = ? AND folder_id = ?',
+          `SELECT id FROM notes WHERE item_id = ? AND folder_id = ? AND ${ownerId ? 'user_id = ?' : 'user_id IS NULL'}`,
           itemId,
           AI_FOLDER_ID,
+          ...(ownerId ? [ownerId] : []),
         )
         : null
 
@@ -124,6 +127,7 @@ export default defineEventHandler(async (event) => {
           folderId: AI_FOLDER_ID,
           itemId,
           url: source ?? null,
+          userId: ownerId,
         })
       }
     } catch (error) {

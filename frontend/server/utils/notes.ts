@@ -78,9 +78,22 @@ export function toNote(row: NoteRow): Note {
   return note
 }
 
-/** Проверяет, что папка существует; `null` — папки нет. */
-export async function folderExists(db: Database, folderId: string): Promise<boolean> {
-  const row = await db.first<{ id: string }>('SELECT id FROM folders WHERE id = ?', folderId)
+/**
+ * Проверяет, что папка существует и доступна пользователю (`null` — его own
+ * папки или «общие», включая служебную `ai-voult`).
+ */
+export async function folderExists(
+  db: Database,
+  folderId: string,
+  userId: string | null,
+): Promise<boolean> {
+  const row = userId
+    ? await db.first<{ id: string }>(
+      'SELECT id FROM folders WHERE id = ? AND (user_id = ? OR user_id IS NULL)',
+      folderId,
+      userId,
+    )
+    : await db.first<{ id: string }>('SELECT id FROM folders WHERE id = ? AND user_id IS NULL', folderId)
 
   return row !== null
 }
@@ -106,14 +119,16 @@ export async function createNote(
     folderId?: string | null
     itemId?: string | null
     url?: string | null
+    /** Владелец заметки; `null` — «общая» (служебная, например от ИИ без входа). */
+    userId?: string | null
   },
 ): Promise<Note> {
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
 
   await db.run(
-    `INSERT INTO notes (id, folder_id, item_id, title, content, url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO notes (id, folder_id, item_id, title, content, url, created_at, updated_at, user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.folderId ?? null,
     input.itemId ?? null,
@@ -122,6 +137,7 @@ export async function createNote(
     input.url ?? null,
     now,
     now,
+    input.userId ?? null,
   )
 
   const row = await db.first<NoteRow>('SELECT * FROM notes WHERE id = ?', id)

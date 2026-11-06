@@ -3,6 +3,7 @@
 // Повторный вызов с тем же id идемпотентен — вернёт существующую папку.
 import { toFolder, type FolderRow } from '../../utils/notes'
 import { optionalText } from '../../utils/items'
+import { scopeFor } from '../../utils/scope'
 
 /**
  * id папки для новых папок. Для латиницы получается читаемый slug,
@@ -29,7 +30,7 @@ function slugify(name: string): string {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = (await readBody<{ name?: string; id?: string }>(event)) ?? {}
+  const body = (await readBody<{ name?: string }>(event)) ?? {}
   const name = optionalText(body.name)
 
   if (!name) {
@@ -37,11 +38,20 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = dbOf(event)
-  // `id` приходит с фронта, где дерево папок моковое и id заданы заранее.
-  const id = optionalText(body.id) ?? slugify(name)
+  const scope = await scopeFor(event)
+
+  // id строится из названия и префикса владельца: одноимённые папки разных
+  // пользователей не конфликтуют по первичному ключу.
+  const baseId = slugify(name)
+  const id = scope.userId ? `${baseId}-${scope.userId.slice(0, 8)}` : baseId
   const now = new Date().toISOString()
 
-  const existing = await db.first<FolderRow>('SELECT * FROM folders WHERE id = ?', id)
+  // Ищем только среди доступных пользователю папок: чужие id для него свободны.
+  const existing = await db.first<FolderRow>(
+    `SELECT * FROM folders WHERE id = ? AND ${scope.sql}`,
+    id,
+    ...scope.params,
+  )
 
   if (existing) {
     // Повторный вызов — идемпотентен: папка уже есть, отдаём её.
@@ -49,11 +59,12 @@ export default defineEventHandler(async (event) => {
   }
 
   await db.run(
-    'INSERT INTO folders (id, name, slug, created_at) VALUES (?, ?, ?, ?)',
+    'INSERT INTO folders (id, name, slug, created_at, user_id) VALUES (?, ?, ?, ?, ?)',
     id,
     name,
     id,
     now,
+    scope.userId,
   )
 
   const row = await db.first<FolderRow>('SELECT * FROM folders WHERE id = ?', id)

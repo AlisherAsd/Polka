@@ -1,13 +1,19 @@
 // PATCH /api/notes/:id — редактирование заметки: title, content, folderId.
 import { folderExists, toNote, type NoteRow } from '../../utils/notes'
 import { optionalText } from '../../utils/items'
+import { scopeFor } from '../../utils/scope'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? ''
   const body = (await readBody<Record<string, unknown>>(event)) ?? {}
   const db = dbOf(event)
+  const scope = await scopeFor(event)
 
-  const current = await db.first<NoteRow>('SELECT * FROM notes WHERE id = ?', id)
+  const current = await db.first<NoteRow>(
+    `SELECT * FROM notes WHERE id = ? AND ${scope.sql}`,
+    id,
+    ...scope.params,
+  )
 
   if (!current) {
     throw createError({ statusCode: 404, message: 'Заметка не найдена' })
@@ -41,7 +47,7 @@ export default defineEventHandler(async (event) => {
   if ('folderId' in body) {
     const folderId = optionalText(body.folderId) ?? null
 
-    if (folderId && !(await folderExists(db, folderId))) {
+    if (folderId && !(await folderExists(db, folderId, scope.userId))) {
       throw createError({ statusCode: 404, message: 'Папка не найдена' })
     }
 

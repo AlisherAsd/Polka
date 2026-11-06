@@ -2,6 +2,7 @@
 // Обновляет только переданные поля и всегда проставляет `updated_at` —
 // сюда же пишется саммари от ИИ.
 import { getDatabase } from '../../utils/db'
+import { scopeFor } from '../../utils/scope'
 import {
   isNotNullable,
   needsUrl,
@@ -19,8 +20,14 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? ''
   const body = (await readBody<ItemBody>(event)) ?? {}
   const db = getDatabase(event)
+  const scope = await scopeFor(event)
 
-  const current = await db.first<ItemRow>('SELECT * FROM items WHERE id = ?', id)
+  // Чужая карточка неотличима от несуществующей.
+  const current = await db.first<ItemRow>(
+    `SELECT * FROM items WHERE id = ? AND ${scope.sql}`,
+    id,
+    ...scope.params,
+  )
 
   if (!current) {
     throw createError({ statusCode: 404, message: 'Карточка не найдена' })

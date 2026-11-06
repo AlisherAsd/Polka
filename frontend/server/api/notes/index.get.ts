@@ -1,14 +1,16 @@
 // GET /api/notes — заметки. Опционально `?folderId=ai-voult` и `?itemId=<карточка>`.
 import { toNote, type NoteRow } from '../../utils/notes'
+import { scopeFor } from '../../utils/scope'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const folderId = typeof query.folderId === 'string' ? query.folderId.trim() : ''
   const itemId = typeof query.itemId === 'string' ? query.itemId.trim() : ''
   const db = dbOf(event)
+  const scope = await scopeFor(event)
 
-  const conditions: string[] = []
-  const params: unknown[] = []
+  const conditions: string[] = [scope.sql]
+  const params: unknown[] = [...scope.params]
 
   if (folderId) {
     conditions.push('folder_id = ?')

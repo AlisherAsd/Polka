@@ -99,10 +99,13 @@ export async function deleteNote(base: ApiBase, id: string): Promise<void> {
   await apiFetch(base, `/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-/** Создаёт папку; `id` нужен, если он приходит с клиента (id узла дерева). */
+/**
+ * Создаёт папку. `id` не передаётся: сервер делает его персональным
+ * (префикс владельца), чтобы одноимённые папки разных людей не конфликтовали.
+ */
 export async function createFolder(
   base: ApiBase,
-  payload: { name: string; id?: string },
+  payload: { name: string },
 ): Promise<Folder> {
   const res = await apiFetch<{ folder: Folder }>(base, '/api/folders', {
     method: 'POST',
