@@ -24,11 +24,16 @@ const apiBase = useApiBase()
 const notify = useNotify()
 const createShare = createShareRequest
 
+/** Полноэкранный режим публичной доски: `/board?share=<slug>&full=1`. */
 /** Активная доска: из адреса (`?folder=`) или последняя открытая вкладка. */
 const folderId = computed<string>(() => String(route.query.folder ?? activeId.value ?? ''))
 const queryFolder = computed<string>(() => String(route.query.folder ?? ''))
 /** Публичная доска: `/board?share=<slug>` — открывается без входа, только чтение. */
 const shareSlug = computed<string>(() => String(route.query.share ?? ''))
+/** Публичная доска без хедера и сайдбара — открывается в новой вкладке. */
+const fullView = computed<boolean>(
+  () => shareSlug.value.length > 0 && String(route.query.full ?? '') === '1',
+)
 const currentFolder = computed(() => topFolders.value.find((folder) => folder.id === folderId.value) ?? null)
 const boardTitle = computed<string>(() =>
   shareSlug.value
@@ -528,7 +533,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="flex min-h-0 w-full flex-1 flex-col">
+  <section
+    class="flex min-h-0 w-full flex-1 flex-col"
+    :class="fullView ? 'h-dvh bg-app' : ''"
+  >
     <!-- Табы открытых досок: один таб = доска одной папки -->
     <div
       v-if="!shareSlug && tabs.length > 0"
@@ -593,6 +601,32 @@ onBeforeUnmount(() => {
       </div>
 
       <span class="min-w-0 truncate text-xs text-mute">{{ hint }}</span>
+
+      <!-- Публичная доска: открыть ту же доску без интерфейса приложения -->
+      <UButton
+        v-if="shareSlug && !fullView"
+        :to="`/board?share=${shareSlug}&full=1`"
+        target="_blank"
+        rel="noopener noreferrer"
+        color="neutral"
+        variant="outline"
+        size="xs"
+        icon="i-lucide-maximize-2"
+        label="Открыть полностью"
+        class="rounded-lg"
+      />
+
+      <!-- Полноэкранный режим: вернуться на главную -->
+      <UButton
+        v-if="fullView"
+        to="/"
+        color="neutral"
+        variant="outline"
+        size="xs"
+        icon="i-lucide-house"
+        label="На главную"
+        class="rounded-lg"
+      />
 
       <UButton
         v-if="!shareSlug && isAuth && currentFolder"

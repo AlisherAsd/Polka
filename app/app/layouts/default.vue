@@ -9,9 +9,26 @@ onMounted(() => {
   // Ширина, которую пользователь выставил в прошлый раз.
   restoreWidth()
 })
+
+/**
+ * Полноэкранная публичная доска (`/board?share=...&full=1`): без рейки,
+ * хедера и панели «Файлы» — только сама доска. Проверяем адрес прямо
+ * в layout, чтобы одинаково работало и на сервере, и на клиенте.
+ */
+const route = useRoute()
+const minimal = computed<boolean>(
+  () => route.path === '/board'
+    && String(route.query.share ?? '').length > 0
+    && String(route.query.full ?? '') === '1',
+)
 </script>
 
 <template>
+  <!-- Полноэкранная публичная доска: только холст, без рейки и хедера -->
+  <div v-if="minimal" class="flex h-dvh w-full flex-col bg-app">
+    <slot />
+  </div>
+
   <!--
     Раскладка на CSS Grid с именованными областями (см. утилиты .layout-areas в main.css):
       ≥ sm: "sidebar header" / "sidebar main" — постоянная рейка + полный хедер;
@@ -19,7 +36,7 @@ onMounted(() => {
     Сайдбар и вторая панель скрыты на мобильном: их место занимают
     `AppMobileHeader` и `AppMobileMenu`.
   -->
-  <div class="layout-areas min-h-dvh bg-app">
+  <div v-else class="layout-areas min-h-dvh bg-app">
     <!--
       Область `header` занимает ровно один элемент: `hidden` на самом
       компоненте не убирает его из grid-зоны (там остаются оба хедера
