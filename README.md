@@ -6,6 +6,7 @@
 ```
 app/                   Nuxt 4 + @nuxt/ui: UI (`app/`) и сервер (`app/server/`), D1-биндинги
 app/migrations/        миграции D1 (единый источник правды)
+contract.md            схема БД, связи и правила данных
 wrangler.jsonc         конфиг воркера: Nuxt SSR + /api + биндинг D1
 apps/desktop/          нативное приложение для macOS (Rust + Tauri, WKWebView)
 Makefile               частые команды (`make help`)
