@@ -222,3 +222,13 @@ img {
   box-shadow: none;
   overflow: hidden;
 }
+
+/*
+ * Устройства без hover (телефон, планшет) не умеют «навести»: элементы,
+ * которые на десктопе проявляются при hover, там должны быть видны сразу.
+ */
+@media (hover: none) {
+  .touch-control {
+    opacity: 1 !important;
+  }
+}

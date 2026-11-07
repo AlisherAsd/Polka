@@ -442,7 +442,7 @@ function handleFlowSelect(keys: string[]): void {
         size="xs"
         :icon="multiSelect ? 'i-lucide-check' : 'i-lucide-list-checks'"
         :label="multiSelect ? 'Готово' : 'Выбрать'"
-        class="rounded-lg sm:hidden"
+        class="rounded-lg"
         @click="toggleMultiSelect"
       />
 

@@ -207,7 +207,7 @@ function handleClick(): void {
       >
         <button
           type="button"
-          class="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-mute opacity-0 transition-opacity hover:bg-app hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
+          class="touch-control max-sm:opacity-100 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-mute opacity-0 transition-opacity hover:bg-app hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
           :aria-label="actionsLabel"
           :title="actionsLabel"
           @click.stop

@@ -225,7 +225,7 @@ function handleToggle(): void {
           size="xs"
           icon="i-lucide-lock"
           label="Суммировать"
-          class="absolute bottom-2 left-2 rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
+          class="touch-control max-sm:opacity-100 absolute bottom-2 left-2 rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
           :aria-label="`Суммировать «${card.title}» — нужен доступ к ИИ`"
           @click.stop="handleSummarize"
         />
@@ -239,7 +239,7 @@ function handleToggle(): void {
         size="xs"
         icon="i-lucide-sparkles"
         label="Суммировать"
-        class="absolute bottom-2 left-2 rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
+        class="touch-control max-sm:opacity-100 absolute bottom-2 left-2 rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
         :aria-label="`Суммировать «${card.title}»`"
         @click.stop="handleSummarize"
       />
@@ -251,7 +251,7 @@ function handleToggle(): void {
         size="xs"
         icon="i-lucide-x"
         square
-        class="absolute right-2 top-2 rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
+        class="touch-control max-sm:opacity-100 absolute right-2 top-2 rounded-full bg-black/55 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
         :aria-label="`Удалить «${card.title}»`"
         @click="handleDelete"
       />
