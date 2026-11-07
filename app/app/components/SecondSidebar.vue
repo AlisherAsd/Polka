@@ -11,6 +11,7 @@ const { tree, error, init, rootFolder, topFolders, reload } = useFiles()
 const notify = useNotify()
 const confirm = useConfirm()
 const apiBase = useApiBase()
+const { openModal: openNoteModal } = useNoteModal()
 
 /** Создание новой верхней папки — сразу с доской (серверная логика). */
 const creatingFolder = ref<boolean>(false)
@@ -84,6 +85,19 @@ function handleToggle(id: string): void {
         title="Новая папка"
         :loading="creatingFolder"
         @click="handleCreateFolder"
+      />
+
+      <UButton
+        v-if="isAuth"
+        type="button"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-file-plus"
+        square
+        aria-label="Новая заметка"
+        title="Новая заметка"
+        @click="openNoteModal"
       />
     </div>
 

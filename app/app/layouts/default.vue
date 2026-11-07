@@ -85,6 +85,8 @@ onMounted(() => {
 
     <AppFolderModal />
 
+    <AppNoteModal />
+
     <AppAuthModal />
 
     <AppAiKeyModal />
