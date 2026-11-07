@@ -17,12 +17,70 @@ const { canUseAi } = useAiKey()
 const { openModal: openKeyModal } = useAiKeyModal()
 const { openModal: openAuthModal } = useAuthModal()
 const { isAuth } = useAuth()
+const { folders, addNote } = useFiles()
+const notify = useNotify()
 
 /** Поповер «Суммировать»: открыт максимум у одной карточки, сетку не двигает. */
 const { isOpen, close: closePopover, summaryOf, openWithSummary } = useCardPopover()
 
 /** Состояние саммари именно этой карточки. */
 const summaryState = computed(() => summaryOf(props.card.id))
+
+/** Куда сохранить готовое саммари файлом. */
+const targetFolderId = ref<string>('')
+const saving = ref<boolean>(false)
+const saved = ref<boolean>(false)
+
+const folderItems = computed(() =>
+  folders.value.map((folder) => ({ label: folder.name, value: folder.id })),
+)
+
+/** По умолчанию — «Мои знания», если она есть в списке. */
+const defaultFolderId = computed<string>(() => {
+  const root = folders.value.find((folder) => folder.isRoot === true)
+
+  return root?.id ?? folders.value[0]?.id ?? ''
+})
+
+// Панель открыли — подставляем папку по умолчанию (watch ниже, после popoverOpen).
+watch(() => summaryState.value.status, (status) => {
+  if (status === 'loading') {
+    saved.value = false
+  }
+
+  if (!targetFolderId.value) {
+    targetFolderId.value = defaultFolderId.value
+  }
+})
+
+/** Кладёт готовое саммари файлом в выбранную папку. */
+async function saveSummaryToFolder(): Promise<void> {
+  const folder = folders.value.find((item) => item.id === targetFolderId.value)
+  const text = summaryState.value.text.trim()
+
+  if (!folder || text.length === 0 || saving.value || saved.value) {
+    return
+  }
+
+  saving.value = true
+
+  try {
+    await addNote({
+      title: `${props.card.title} — саммари`,
+      content: props.card.url ? `${text}\n\nИсточник: ${props.card.url}` : text,
+      folderId: folder.id,
+      itemId: props.card.id,
+      url: props.card.url ?? null,
+    })
+
+    saved.value = true
+    notify.success(`Файл добавлен в «${folder.name}»`)
+  } catch (error) {
+    notify.fail(error, 'Не удалось добавить файл')
+  } finally {
+    saving.value = false
+  }
+}
 
 /** Кнопка/блок карточки запускают запрос саммари (повторно — без запроса). */
 function handleSummarize(): void {
@@ -49,9 +107,15 @@ const popoverOpen = computed<boolean>({
   },
 })
 
+// Панель открыли — подставляем папку по умолчанию, если ещё не выбрана.
+watch(popoverOpen, (open) => {
+  if (open && !targetFolderId.value) {
+    targetFolderId.value = defaultFolderId.value
+  }
+})
+
 /** Иконка-заглушка превью по типу источника. */
-const TYPE_ICON: Readonly<Record<CardType, string>> = {
-  youtube: '▶',
+const TYPE_ICON: Readonly<Record<CardType, string>> = {  youtube: '▶',
   tiktok: '♪',
   article: '◫',
   note: '✎',
@@ -291,6 +355,31 @@ function handleToggle(): void {
           >
             {{ summaryState.text }}
           </p>
+
+          <!-- Готовое саммари можно сразу положить файлом в папку -->
+          <div v-if="summaryState.status === 'ready'" class="flex items-center gap-1.5">
+            <USelect
+              v-model="targetFolderId"
+              :items="folderItems"
+              size="xs"
+              class="min-w-0 flex-1"
+              placeholder="Папка"
+              aria-label="Папка для файла"
+            />
+
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              icon="i-lucide-file-plus"
+              :label="saved ? 'Добавлено' : 'В папку'"
+              class="rounded-lg px-2.5 text-[11px]"
+              :loading="saving"
+              :disabled="saving || saved || !targetFolderId"
+              @click.stop="saveSummaryToFolder"
+            />
+          </div>
 
           <p v-else class="text-[11px] leading-snug text-dim">
             Нажмите «Суммировать», чтобы получить краткое содержание.
