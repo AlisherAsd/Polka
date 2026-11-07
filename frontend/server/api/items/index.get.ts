@@ -17,8 +17,6 @@ export default defineEventHandler(async (event) => {
     limit,
   )
 
-  // Короткий лог: по нему видно, чья сессия пришла из натива и сколько карточек отдано.
-  console.log('[items:get]', { userId: scope.userId ?? 'guest', count: rows.length, limit })
 
   return { items: rows.map(toItem) }
 })

@@ -3,7 +3,7 @@
  * Вызывать только на клиенте: SSR-разметка должна оставаться пустой.
  */
 import type { Card, CardType } from '~/types/card'
-import { apiUrl, type ApiBase } from './client'
+import { apiFetch, type ApiBase } from './client'
 
 /**
  * База для запросов к API. Пустая строка — тот же origin, иначе — абсолютный
@@ -38,9 +38,16 @@ export interface CreateItemPayload {
 /** Тело `PATCH /api/items/:id`: любое подмножество полей карточки. */
 export type UpdateItemPayload = CreateItemPayload
 
-/** Список карточек (новые первыми). */
+/**
+ * Список карточек (новые первыми).
+ *
+ * ВАЖНО: всё идёт через `apiFetch`, потому что только он добавляет
+ * `Authorization: Bearer` (сессия натива) и `X-OpenRouter-Key`.
+ * Прямой `$fetch` уходил без токена — в приложении возвращался только
+ * публичный слой карточек.
+ */
 export async function fetchItems(base: ApiBase, limit = 200): Promise<Card[]> {
-  const res = await $fetch<ItemsResponse>(apiUrl(base, '/api/items'), {
+  const res = await apiFetch<ItemsResponse>(base, '/api/items', {
     query: { limit },
   })
 
@@ -49,7 +56,7 @@ export async function fetchItems(base: ApiBase, limit = 200): Promise<Card[]> {
 
 /** Создаёт карточку и возвращает её серверное представление (с id и createdAt из БД). */
 export async function createItem(base: ApiBase, payload: CreateItemPayload): Promise<Card> {
-  const res = await $fetch<ItemResponse>(apiUrl(base, '/api/items'), {
+  const res = await apiFetch<ItemResponse>(base, '/api/items', {
     method: 'POST',
     body: payload,
   })
@@ -63,7 +70,7 @@ export async function updateItem(
   id: string,
   patch: UpdateItemPayload,
 ): Promise<Card> {
-  const res = await $fetch<ItemResponse>(apiUrl(base, `/api/items/${encodeURIComponent(id)}`), {
+  const res = await apiFetch<ItemResponse>(base, `/api/items/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: patch,
   })
@@ -73,7 +80,7 @@ export async function updateItem(
 
 /** Удаляет карточку. Бросает при не-2xx. */
 export async function deleteItem(base: ApiBase, id: string): Promise<void> {
-  await $fetch(apiUrl(base, `/api/items/${encodeURIComponent(id)}`), {
+  await apiFetch(base, `/api/items/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
 }

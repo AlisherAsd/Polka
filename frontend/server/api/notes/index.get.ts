@@ -28,7 +28,6 @@ export default defineEventHandler(async (event) => {
     ...params,
   )
 
-  console.log('[notes:get]', { userId: scope.userId ?? 'guest', count: rows.length })
 
   return { notes: rows.map(toNote) }
 })
