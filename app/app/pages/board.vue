@@ -2,15 +2,77 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Card } from '~/types/card'
 import type { Note } from '~/api/notes'
+import { createShare as createShareRequest } from '~/api/shares'
+import { useApiBase } from '~/api/client'
 
 /**
- * Доска: карточки и файлы (заметки) — перетаскиваемые узлы с общим зумом
- * и выделением. Позиции узлов сохраняются в D1 (`/api/board`), масштаб
- * остаётся сессионным. Связи «карточка ↔ файлы» выводятся из `notes.item_id`.
+ * Страница «Доска»: сверху табы открытых досок (по одному на папку),
+ * ниже — холст активной доски.
+ *
+ * Доска открывается кликом по папке в панели «Файлы». Активная вкладка
+ * фиксируется в адресе (`/board?folder=<id>`), поэтому ссылкой можно
+ * поделиться, а после перезагрузки контекст сохраняется.
  */
 const { cards } = useCards()
 const { placed, links, init: initBoard, moveNode } = useBoard()
-const { notes } = useFiles()
+const { notes, topFolders, rootFolder } = useFiles()
+const { tabs, activeId, restore, open, activate, close, rename, prune } = useBoardTabs()
+const route = useRoute()
+const router = useRouter()
+const apiBase = useApiBase()
+const notify = useNotify()
+const createShare = createShareRequest
+
+/** Активная доска: из адреса (`?folder=`) или последняя открытая вкладка. */
+const folderId = computed<string>(() => String(route.query.folder ?? activeId.value ?? ''))
+const queryFolder = computed<string>(() => String(route.query.folder ?? ''))
+const currentFolder = computed(() => topFolders.value.find((folder) => folder.id === folderId.value) ?? null)
+const boardTitle = computed<string>(() => currentFolder.value?.name ?? 'Доска')
+const folderMissing = computed<boolean>(
+  () => topFolders.value.length > 0 && folderId.value.length > 0 && currentFolder.value === null,
+)
+
+/** Публикация доски активной папки. */
+const sharing = ref<boolean>(false)
+
+async function publishBoard(): Promise<void> {
+  const folder = currentFolder.value
+
+  if (!folder || sharing.value) {
+    return
+  }
+
+  sharing.value = true
+
+  try {
+    const share = await createShare(apiBase, { kind: 'board', refId: folder.boardId ?? undefined })
+    const url = `${window.location.origin}${share.url}`
+
+    await navigator.clipboard.writeText(url)
+    notify.success('Ссылка скопирована', 'Доска опубликована')
+  } catch (error) {
+    notify.fail(error, 'Не удалось опубликовать доску')
+  } finally {
+    sharing.value = false
+  }
+}
+
+/** Клик по табу. */
+function switchTab(id: string): void {
+  activate(id)
+  void router.replace({ query: { ...route.query, folder: id } })
+}
+
+/** Закрытие таба активной доски — переход на соседнюю. */
+function closeTab(id: string): void {
+  close(id)
+
+  if (activeId.value) {
+    void router.replace({ query: { ...route.query, folder: activeId.value } })
+  } else {
+    void router.replace({ query: {} })
+  }
+}
 const { scale, zoomIn, zoomOut, reset, setScale } = useBoardZoom()
 const { openModal: openSummarize } = useSummarizeModal()
 
@@ -49,7 +111,56 @@ const selectedIds = ref<string[]>([])
  * а после переходов (или сохранений с другого устройства) они могли измениться.
  */
 onMounted(() => {
-  void initBoard()
+  restore()
+
+  const fromQuery = queryFolder.value
+
+  if (fromQuery) {
+    open(fromQuery, topFolders.value.find((folder) => folder.id === fromQuery)?.name)
+  } else if (rootFolder.value) {
+    open(rootFolder.value.id, rootFolder.value.name)
+  }
+
+  if (folderId.value) {
+    void initBoard(folderId.value)
+  }
+})
+
+// Папки догрузились: чистим вкладки удалённых и подтягиваем названия.
+watch(topFolders, (folders) => {
+  if (folders.length === 0) {
+    return
+  }
+
+  prune(folders.map((folder) => folder.id))
+
+  for (const tab of tabs.value) {
+    const folder = folders.find((item) => item.id === tab.folderId)
+
+    if (folder) {
+      rename(tab.folderId, folder.name)
+    }
+  }
+
+  if (!folderId.value && rootFolder.value) {
+    open(rootFolder.value.id, rootFolder.value.name)
+    void initBoard(rootFolder.value.id)
+  }
+})
+
+// Переключение вкладки — адрес и загрузка узлов этой доски.
+watch(folderId, (next) => {
+  if (!next) {
+    return
+  }
+
+  activate(next)
+
+  if (queryFolder.value !== next) {
+    void router.replace({ query: { ...route.query, folder: next } })
+  }
+
+  void initBoard(next)
 })
 
 const isEmpty = computed<boolean>(() => placed.value.length === 0)
@@ -310,6 +421,44 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="flex min-h-0 w-full flex-1 flex-col">
+    <!-- Табы открытых досок: один таб = доска одной папки -->
+    <div
+      v-if="tabs.length > 0"
+      class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-line bg-surface px-2 py-1.5 sm:px-4"
+      role="tablist"
+      aria-label="Открытые доски"
+    >
+      <div
+        v-for="tab in tabs"
+        :key="tab.folderId"
+        class="group flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 transition-colors"
+        :class="tab.folderId === folderId
+          ? 'border-line bg-app text-ink'
+          : 'border-transparent text-dim hover:bg-app/60'"
+        role="tab"
+        :aria-selected="tab.folderId === folderId"
+      >
+        <button
+          type="button"
+          class="flex min-w-0 items-center gap-1.5 text-xs"
+          :title="tab.name"
+          @click="switchTab(tab.folderId)"
+        >
+          <UIcon name="i-lucide-layout-dashboard" class="size-3.5 shrink-0 text-mute" />
+          <span class="max-w-[160px] truncate">{{ tab.name }}</span>
+        </button>
+
+        <UIcon
+          name="i-lucide-x"
+          class="size-3 shrink-0 cursor-pointer text-mute opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
+          role="button"
+          tabindex="0"
+          :aria-label="`Закрыть доску «${tab.name}»`"
+          @click.stop="closeTab(tab.folderId)"
+          @keydown.enter.prevent.stop="closeTab(tab.folderId)"
+        />
+      </div>
+    </div>
     <!--
       Шапка: на мобильном hint уходит отдельной строкой под зум-контролы,
       на десктопе всё в одну строку.
@@ -317,7 +466,22 @@ onBeforeUnmount(() => {
     <header
       class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
     >
-      <h1 class="shrink-0 text-base font-semibold text-ink sm:text-lg">Доска</h1>
+      <div class="flex min-w-0 shrink-0 items-baseline gap-2">
+        <h1 class="max-w-[220px] truncate text-base font-semibold text-ink sm:text-lg">{{ boardTitle }}</h1>
+      </div>
+
+      <UButton
+        v-if="isAuth && currentFolder"
+        type="button"
+        color="neutral"
+        variant="outline"
+        size="xs"
+        icon="i-lucide-share-2"
+        label="Сделать публичной"
+        class="rounded-lg"
+        :loading="sharing"
+        @click="publishBoard"
+      />
 
       <span class="order-last w-full min-w-0 truncate text-xs text-mute sm:order-none sm:w-auto">
         {{ hint }}
@@ -368,11 +532,22 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="relative min-h-0 flex-1 overflow-auto bg-app">
-      <AuthGate
-        v-if="!isAuth"
-        feature="Доска"
-        description="Раскладывать карточки и файлы по холсту можно после входа в аккаунт."
-        class="mt-10"
+      <!-- Нет ни одной открытой доски (вкладки закрыты) -->
+      <EmptyState
+        v-if="tabs.length === 0"
+        title="Откройте доску"
+        description="Нажмите на папку в панели «Файлы» — её доска откроется здесь во вкладке."
+        class="mx-auto max-w-md"
+      />
+
+      <EmptyState
+        v-else-if="folderMissing"
+        :image="undefined"
+        title="Папка не найдена"
+        description="Возможно, ссылка устарела или доска принадлежит другому аккаунту."
+        action-label="К «Моим знаниям»"
+        class="mx-auto max-w-md"
+        @action="rootFolder && switchTab(rootFolder.id)"
       />
 
       <EmptyState

@@ -9,6 +9,8 @@ import {
   type UserRow,
 } from '../../utils/auth'
 import { createSession, setSessionCookie } from '../../utils/session'
+import { resetFoldersToBaseline } from '../../utils/workspaces'
+import { ensureUserAiFolder } from '../../utils/ai-folder'
 import { clientPlatform } from '../../utils/client-info'
 
 export default defineEventHandler(async (event) => {
@@ -66,6 +68,10 @@ export default defineEventHandler(async (event) => {
     is_premium: 0,
     created_at: now,
   }
+
+  // Базовое состояние папок: «Мои знания» + ai-voult, без лишних и вложенных.
+  await ensureUserAiFolder(db, id)
+  await resetFoldersToBaseline(db, id)
 
   const { token, expiresAt } = await createSession(event, id)
 

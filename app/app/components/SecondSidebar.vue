@@ -1,11 +1,45 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useApiBase } from '~/api/client'
+import { createFolder as createFolderRequest } from '~/api/notes'
 
 /**
  * Вторая панель — дерево папок и заметок с бэкенда (`/api/folders`, `/api/notes`).
  * Шириной/выездом управляет обёртка в layout (`useSidePanel`), здесь только дерево.
  */
-const { tree, error, init } = useFiles()
+const { tree, error, init, rootFolder, topFolders, reload } = useFiles()
+const notify = useNotify()
+const confirm = useConfirm()
+const apiBase = useApiBase()
+
+/** Создание новой верхней папки — сразу с доской (серверная логика). */
+const creatingFolder = ref<boolean>(false)
+
+async function handleCreateFolder(): Promise<void> {
+  // `window.prompt` в Tauri не поддерживается — спрашиваем через свою модалку.
+  const name = await confirm.ask({
+    title: 'Новая папка',
+    description: 'Папка создаётся вместе с собственной доской.',
+    confirmLabel: 'Создать',
+    input: 'Название папки',
+  })
+
+  if (typeof name !== 'string' || creatingFolder.value) {
+    return
+  }
+
+  creatingFolder.value = true
+
+  try {
+    await createFolderRequest(apiBase, { name })
+    await reload()
+    notify.success(`Папка «${name}» создана`)
+  } catch (err) {
+    notify.fail(err, 'Не удалось создать папку')
+  } finally {
+    creatingFolder.value = false
+  }
+}
 
 /** Раскрытые папки: корень открыт, вложенные — по клику. */
 const expanded = computed<Record<string, boolean>>(() => ({
@@ -25,10 +59,7 @@ onMounted(() => {
 })
 
 function handleToggle(id: string): void {
-  if (!isAuth.value) {
-    return
-  }
-
+  // Раскрытие папок работает и без входа: дерево остаётся обозреваемым.
   toggled.value = { ...toggled.value, [id]: !(toggled.value[id] ?? false) }
 }
 </script>
@@ -38,9 +69,23 @@ function handleToggle(id: string): void {
     class="flex h-full w-full min-w-0 flex-col items-stretch gap-0.5 overflow-hidden bg-surface p-3 text-left"
     aria-label="Файлы"
   >
-    <p class="w-full px-2 pb-1 text-left text-xs font-semibold uppercase tracking-wide text-mute">
-      Файлы
-    </p>
+    <div class="flex w-full items-center justify-between gap-1 px-2 pb-1">
+      <p class="text-left text-xs font-semibold uppercase tracking-wide text-mute">Файлы</p>
+
+      <UButton
+        v-if="isAuth"
+        type="button"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-plus"
+        square
+        aria-label="Новая папка"
+        title="Новая папка"
+        :loading="creatingFolder"
+        @click="handleCreateFolder"
+      />
+    </div>
 
     <p v-if="error" class="px-2 text-xs text-[#b3261e]">{{ error }}</p>
 

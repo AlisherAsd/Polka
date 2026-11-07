@@ -9,13 +9,6 @@
  * и «сайт на другом origin» попадут в нужный хост.
  */
 
-/**
- * Куда обращаться, если ни runtime config, ни `window.__NUXT__` не дали адрес.
- * Держим прод-адрес воркера: без него в статической сборке запросы уходят
- * на `file://`/`tauri://` и падают без внятной ошибки.
- */
-const FALLBACK_API_BASE = 'https://polka.alishersharipovtol.workers.dev'
-
 /** Ответ `$fetch`-ошибки с телом `{ message }`. */
 function messageOf(error: unknown, fallback: string): string {
   const message = (error as { data?: { message?: unknown } })?.data?.message
@@ -26,13 +19,18 @@ function messageOf(error: unknown, fallback: string): string {
 /**
  * База API.
  *
- * Основной источник — `runtimeConfig.public.apiBase` (в статической сборке это
- * `window.__NUXT__.config.public`). Дополнительно читаем `window.__NUXT__`
- * напрямую: composable может вызываться вне setup-контекста (например, из
- * плагина или из промиса), и тогда `useRuntimeConfig()` отдаёт пустые значения —
- * в нативном приложении это уводило запросы на `tauri://localhost/api/...`.
+ * Пустая строка — тот же origin: так работает и локальный dev (Nitro-ручки на
+ * `localhost:3000`), и веб в проде (воркер вместе с `/api`).
+ *
+ * Внешний адрес нужен только статике (нативное приложение): он приходит из
+ * `NUXT_PUBLIC_API_BASE` при сборке — см. `npm run desktop:web`. Никаких
+ * зашитых адресов в коде нет: если статику собрали без переменной, запрос
+ * пойдёт в `tauri://`/`file://` и упадёт — это заметно сразу, а не тихо
+ * уводит локальную разработку в прод.
  */
 export function useApiBase(): string {
+  // `useRuntimeConfig()` работает и в setup, и в плагинах; `window.__NUXT__`
+  // читаем как запасной путь для ранних вызовов до инициализации Nuxt.
   const runtime = String(useRuntimeConfig().public?.apiBase ?? '')
 
   if (runtime) {
@@ -48,8 +46,8 @@ export function useApiBase(): string {
     }
   }
 
-  // Последний рубеж для натива: адрес прод-API из wrangler.jsonc.
-  return FALLBACK_API_BASE
+  // Пусто — тот же origin (dev и веб).
+  return ''
 }
 
 /** Собирает абсолютный URL: пустая база — тот же origin. */

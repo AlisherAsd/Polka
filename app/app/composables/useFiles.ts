@@ -1,6 +1,6 @@
 import { computed, readonly, ref } from 'vue'
 import type { Ref } from 'vue'
-import { createNote, deleteFolder, deleteNote, fetchFolders, fetchNotes } from '~/api/notes'
+import { copyFolder as copyFolderRequest, createNote, deleteFolder, deleteNote, fetchFolders, fetchNotes } from '~/api/notes'
 import { useApiBase } from '~/api/client'
 import type { Folder, Note } from '~/api/notes'
 import { TREE_ROOT_ID, buildFileTree } from '~/utils/fileTree'
@@ -52,6 +52,18 @@ export function useFiles() {
 
   /** Дерево второй панели: папки и лежащие в них заметки. */
   const tree = computed<FileNode[]>(() => buildFileTree(state.folders.value, state.notes.value))
+
+  /** Корневая папка «Мои знания». */
+  const rootFolder = computed<Folder | null>(
+    () => state.folders.value.find((folder) => folder.isRoot === true) ?? null,
+  )
+
+  /** Верхние папки: сначала «Мои знания», затем созданные пользователем. */
+  const topFolders = computed<Folder[]>(() =>
+    state.folders.value
+      .filter((folder) => folder.isRoot === true || folder.parentId == null)
+      .sort((a, b) => Number(Boolean(b.isRoot)) - Number(Boolean(a.isRoot))),
+  )
 
   /** Папки, доступные для выбора (без корневого узла). */
   const selectableFolders = computed<Folder[]>(() =>
@@ -143,6 +155,24 @@ export function useFiles() {
     }
   }
 
+  /** Копирует папку вместе с доской и заметками. */
+  async function copyFolder(folderId: string): Promise<Folder | null> {
+    const folder = state.folders.value.find((item) => item.id === folderId)
+
+    try {
+      const created = await copyFolderRequest(apiBase, folderId)
+
+      await reload()
+      notify.success(`Скопировано: «${created.name}»`)
+
+      return created
+    } catch (err) {
+      notify.fail(err, 'Не удалось скопировать папку')
+
+      return null
+    }
+  }
+
   /** Удаляет заметку (файл). */
   async function removeNote(noteId: string): Promise<void> {
     const note = state.notes.value.find((item) => item.id === noteId)
@@ -162,6 +192,8 @@ export function useFiles() {
     folders,
     notes,
     tree,
+    rootFolder,
+    topFolders,
     selectableFolders,
     loading,
     error,
@@ -172,5 +204,6 @@ export function useFiles() {
     addNote,
     removeFolder,
     removeNote,
+    copyFolder,
   }
 }

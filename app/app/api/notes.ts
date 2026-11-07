@@ -21,6 +21,12 @@ export interface Folder {
   id: string
   name: string
   slug?: string
+  /** Корневая папка «Мои знания»: всегда есть у авторизованного пользователя. */
+  isRoot?: boolean
+  /** Родитель для вложенных папок; у верхних `null`. */
+  parentId?: string | null
+  /** Доска папки (у верхних папок есть всегда). */
+  boardId?: string | null
   createdAt: string
 }
 
@@ -37,6 +43,8 @@ interface NoteResponse {
 
 interface FoldersResponse {
   folders: Folder[]
+  /** `true`, если сервер вернул корень «Мои знания». */
+  hasRoot?: boolean
 }
 
 /** Список заметок, при необходимости — по папке или по карточке. */
@@ -110,6 +118,15 @@ export async function createFolder(
   const res = await apiFetch<{ folder: Folder }>(base, '/api/folders', {
     method: 'POST',
     body: payload,
+  })
+
+  return res.folder
+}
+
+/** Копирует папку вместе с доской и заметками; возвращает копию. */
+export async function copyFolder(base: ApiBase, id: string): Promise<Folder> {
+  const res = await apiFetch<{ folder: Folder }>(base, `/api/folders/${encodeURIComponent(id)}/copy`, {
+    method: 'POST',
   })
 
   return res.folder

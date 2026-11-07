@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { FileNode } from '~/utils/fileTree'
+import { createShare } from '~/api/shares'
+import { apiUrl, useApiBase } from '~/api/client'
 
 /**
  * Узел дерева файлов. Папки раскрываются, файлы — это заметки из базы
@@ -20,9 +22,22 @@ const emit = defineEmits<{
 const { closeMenu } = useMobileMenu()
 const { closeSidePanel } = useSidePanel()
 const { isAuth } = useAuth()
-const { openModal: openAuthModal } = useAuthModal()
-const { removeFolder, removeNote } = useFiles()
+const { removeFolder, removeNote, copyFolder } = useFiles()
+const boardTabs = useBoardTabs()
+
+/**
+ * Клик по папке открывает её доску на странице «Доска» (в новой вкладке-табе),
+ * а не отдельным маршрутом. Второй клик по уже открытой — просто переключает.
+ */
+async function openFolderBoard(): Promise<void> {
+  boardTabs.restore()
+  boardTabs.open(props.node.id, props.node.name)
+
+  await navigateTo({ path: '/board', query: { folder: props.node.id } })
+}
 const confirm = useConfirm()
+const notify = useNotify()
+const apiBase = useApiBase()
 
 /** Служебную `ai-voult` удалить нельзя. */
 const isServiceFolder = computed<boolean>(() => props.node.id === 'ai-voult')
@@ -30,7 +45,36 @@ const canDelete = computed<boolean>(() => isAuth.value && props.node.id !== 'kno
 
 const pending = ref<boolean>(false)
 
-/** Удаление папки или файла: подтверждение нативным `confirm`, тост по итогу. */
+/**
+ * Публичная ссылка на папку: копируется в буфер, чтобы её можно было отправить.
+ * У файлов публикации нет — делится папка целиком.
+ */
+async function handleShare(): Promise<void> {
+  if (!isAuth.value || !isFolder.value) {
+    return
+  }
+
+  try {
+    const share = await createShare(apiBase, { kind: 'folder', refId: props.node.id })
+    const url = `${window.location.origin}${apiUrl('', share.url)}`
+
+    await navigator.clipboard.writeText(url)
+    notify.success('Ссылка скопирована', 'Подборка опубликована')
+  } catch (error) {
+    notify.fail(error, 'Не удалось опубликовать')
+  }
+}
+
+/** Копия папки вместе с её доской. */
+async function handleCopy(): Promise<void> {
+  if (!isFolder.value) {
+    return
+  }
+
+  await copyFolder(props.node.id)
+}
+
+/** Удаление папки или файла: подтверждение своей модалкой, тост по итогу. */
 async function handleDelete(): Promise<void> {
   if (pending.value) {
     return
@@ -105,14 +149,7 @@ const icon = computed<string>(() => {
 const indent = computed<string>(() => `${Math.min(props.depth * 12, 48)}px`)
 
 function handleClick(): void {
-  // Раньше клик по папке без входа молча ничего не делал — на телефоне это
-  // выглядело как «нажатие не срабатывает». Теперь открываем вход.
-  if (isFolder.value && !isAuth.value) {
-    openAuthModal()
-
-    return
-  }
-
+  // Папка: обычный клик раскрывает дерево (доска — через меню «⋯»).
   if (isFolder.value) {
     emit('toggle', props.node.id)
 
@@ -146,11 +183,50 @@ function handleClick(): void {
       <UIcon v-if="isFolder && hasChildren" name="i-lucide-chevron-right"
         class="size-4 shrink-0 text-mute transition-transform" :class="isOpen ? 'rotate-90' : 'rotate-0'" />
 
-      <!-- Удаление папки/файла: своя кнопка, чтобы не мешать раскрытию -->
-      <UIcon v-if="canDelete" name="i-lucide-trash-2"
-        class="size-3.5 shrink-0 cursor-pointer text-mute opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#b3261e] focus-visible:opacity-100"
-        role="button" tabindex="0" :aria-label="`Удалить «${node.name}»`" @click.stop="handleDelete"
-        @keydown.enter.prevent.stop="handleDelete" />
+      <!-- Действия в одном меню: копировать, клонировать, удалить, к доске -->
+      <UPopover
+        v-if="isFolder && isAuth"
+        :content="{ side: 'bottom', align: 'start', sideOffset: 6 }"
+      >
+        <button
+          type="button"
+          class="shrink-0 rounded-md p-0.5 text-mute opacity-0 transition-opacity hover:bg-app hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
+          :aria-label="`Действия с папкой «${node.name}»`"
+          :title="`Действия с папкой «${node.name}»`"
+          @click.stop
+          @pointerdown.stop
+        >
+          <UIcon name="i-lucide-ellipsis-vertical" class="size-3.5" />
+        </button>
+
+        <template #content>
+          <div class="flex w-44 flex-col p-1 text-xs">
+            <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="handleShare">
+              <UIcon name="i-lucide-link" class="size-3.5 text-mute" />
+              Скопировать ссылку
+            </button>
+
+            <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="handleCopy">
+              <UIcon name="i-lucide-copy" class="size-3.5 text-mute" />
+              Клонировать
+            </button>
+
+            <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="openFolderBoard">
+              <UIcon name="i-lucide-layout-dashboard" class="size-3.5 text-mute" />
+              Перейти к доске
+            </button>
+
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[#b3261e] hover:bg-app"
+              @click.stop="handleDelete"
+            >
+              <UIcon name="i-lucide-trash-2" class="size-3.5" />
+              Удалить
+            </button>
+          </div>
+        </template>
+      </UPopover>
     </button>
 
     <ul v-if="isFolder && isOpen && hasChildren" class="flex min-w-0 flex-col gap-0.5 overflow-hidden">

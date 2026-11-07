@@ -12,7 +12,15 @@ const { isAuth } = useAuth()
 
 const isHome = computed<boolean>(() => route.path === '/')
 const isChat = computed<boolean>(() => route.path === '/chat')
-const isBoard = computed<boolean>(() => route.path === '/board')
+/** Доска — страница с табами; активная вкладка хранится в `useBoardTabs`. */
+const boardTabs = useBoardTabs()
+const boardLink = computed<string>(() => {
+  boardTabs.restore()
+
+  return boardTabs.activeId.value ? `/board?folder=${boardTabs.activeId.value}` : '/board'
+})
+
+const isBoard = computed<boolean>(() => route.path.startsWith('/board'))
 </script>
 
 <template>
@@ -39,7 +47,7 @@ const isBoard = computed<boolean>(() => route.path === '/board')
         icon="i-lucide-message-circle-question" square class="rounded-xl" title="Чат" aria-label="Чат"
         :aria-current="isChat ? 'page' : undefined" />
 
-      <UButton to="/board" color="neutral" :variant="isBoard ? 'soft' : 'ghost'" size="md"
+      <UButton :to="boardLink" color="neutral" :variant="isBoard ? 'soft' : 'ghost'" size="md"
         icon="i-lucide-layout-dashboard" square class="rounded-xl" title="Доска" aria-label="Доска"
         :aria-current="isBoard ? 'page' : undefined" />
     </nav>

@@ -1,6 +1,8 @@
 /**
- * Клиентские обёртки над доской: `/api/board` хранит позиции узлов
- * (карточек и заметок-файлов) в D1.
+ * Доска конкретной папки: `/api/boards/:folderId`.
+ *
+ * Каждая папка верхнего уровня имеет свою доску, поэтому и чтение,
+ * и сохранение позиций адресуются через `folderId`.
  */
 import { apiFetch, type ApiBase } from './client'
 
@@ -15,28 +17,33 @@ export interface BoardNode {
   updatedAt: string
 }
 
-interface BoardResponse {
+export interface BoardPayload {
+  id: string
+  folderId: string
   nodes: BoardNode[]
 }
 
-/** Все узлы доски. */
-export async function fetchBoard(base: ApiBase): Promise<BoardNode[]> {
-  const res = await apiFetch<BoardResponse>(base, '/api/board')
-
-  return Array.isArray(res.nodes) ? res.nodes : []
+interface BoardResponse {
+  board: BoardPayload
 }
 
-/**
- * Сохраняет позицию узла. `key` — id карточки или заметки.
- * Вызывается по окончании перетаскивания, поэтому ошибки не всплывают в UI.
- */
+/** Доска папки (создаётся при первом обращении). */
+export async function fetchBoard(base: ApiBase, folderId: string): Promise<BoardPayload> {
+  const res = await apiFetch<BoardResponse>(base, `/api/boards/${encodeURIComponent(folderId)}`)
+
+  return res.board
+}
+
+/** Сохраняет позицию узла (узел создаётся при первом сохранении). */
 export async function saveBoardNode(
   base: ApiBase,
+  folderId: string,
   key: string,
   patch: { x: number; y: number; width?: number; height?: number },
 ): Promise<void> {
-  await apiFetch(base, `/api/board/${encodeURIComponent(key)}`, {
-    method: 'PATCH',
-    body: patch,
-  })
+  await apiFetch(
+    base,
+    `/api/boards/${encodeURIComponent(folderId)}/nodes/${encodeURIComponent(key)}`,
+    { method: 'PATCH', body: patch },
+  )
 }

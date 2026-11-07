@@ -50,7 +50,7 @@ const PAGES: SiteEntry[] = [
     description: 'Холст с карточками и файлами',
     kind: 'page',
     keywords: ['холст', 'canvas', 'перетаскивание', 'board'],
-    to: '/board',
+    action: 'go-board',
   },
   {
     id: 'page-chat',

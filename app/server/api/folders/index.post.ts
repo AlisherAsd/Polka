@@ -1,15 +1,11 @@
-// POST /api/folders — создать папку. Тело: { name: string, id?: string }.
-// `id` передаёт фронт: дерево папок моковое и id узлов заданы заранее.
-// Повторный вызов с тем же id идемпотентен — вернёт существующую папку.
-import { toFolder, type FolderRow } from '../../utils/notes'
-import { optionalText } from '../../utils/items'
+// POST /api/folders — создать папку верхнего уровня вместе с её доской.
+// Тело: { name: string }. Ответ: `{ folder }` с `boardId`.
+import { dbOf } from '../../utils/notes'
+import { ensureBoard, listFolders } from '../../utils/workspaces'
 import { scopeFor } from '../../utils/scope'
+import { optionalText } from '../../utils/items'
 
-/**
- * id папки для новых папок. Для латиницы получается читаемый slug,
- * для кириллицы — короткий стабильный хэш (папка создаётся один раз,
- * `SetFolder` на фронте вызывает этот роут идемпотентно).
- */
+/** Читабельный id из названия; для кириллицы — короткий хэш. */
 function slugify(name: string): string {
   const slug = name
     .toLowerCase()
@@ -37,29 +33,30 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Не указано название папки' })
   }
 
-  const db = dbOf(event)
   const scope = await scopeFor(event)
 
-  // id строится из названия и префикса владельца: одноимённые папки разных
-  // пользователей не конфликтуют по первичному ключу.
+  if (!scope.userId) {
+    throw createError({ statusCode: 401, message: 'Нужен вход' })
+  }
+
+  const db = dbOf(event)
   const baseId = slugify(name)
-  const id = scope.userId ? `${baseId}-${scope.userId.slice(0, 8)}` : baseId
+  const id = `${baseId}-${scope.userId.slice(0, 8)}`
   const now = new Date().toISOString()
 
-  // Ищем только среди доступных пользователю папок: чужие id для него свободны.
-  const existing = await db.first<FolderRow>(
-    `SELECT * FROM folders WHERE id = ? AND ${scope.sql}`,
+  const existing = await db.first<{ id: string }>(
+    'SELECT id FROM folders WHERE id = ? AND user_id = ?',
     id,
-    ...scope.params,
+    scope.userId,
   )
 
   if (existing) {
-    // Повторный вызов — идемпотентен: папка уже есть, отдаём её.
-    return { folder: toFolder(existing) }
+    throw createError({ statusCode: 409, message: 'Папка с таким названием уже есть' })
   }
 
+  // Верхняя папка: parent_id = NULL — значит, у неё есть своя доска.
   await db.run(
-    'INSERT INTO folders (id, name, slug, created_at, user_id) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO folders (id, name, slug, created_at, user_id, is_root, parent_id) VALUES (?, ?, ?, ?, ?, 0, NULL)',
     id,
     name,
     id,
@@ -67,9 +64,12 @@ export default defineEventHandler(async (event) => {
     scope.userId,
   )
 
-  const row = await db.first<FolderRow>('SELECT * FROM folders WHERE id = ?', id)
+  await ensureBoard(db, scope.userId, id)
+
+  const folders = await listFolders(db, scope.userId)
+  const folder = folders.find((item) => item.id === id) ?? null
 
   setResponseStatus(event, 201)
 
-  return { folder: row ? toFolder(row) : null }
+  return { folder }
 })

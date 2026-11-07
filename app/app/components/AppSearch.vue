@@ -29,6 +29,7 @@ const { openModal: openKeyModal } = useAiKeyModal()
 const { openModal: openPremiumModal } = usePremiumModal()
 const { openModal: openAuthModal } = useAuthModal()
 const { openSidePanel, closeSidePanel } = useSidePanel()
+const { rootFolder } = useFiles()
 const { isAuth, signOut } = useAuth()
 const notify = useNotify()
 
@@ -58,6 +59,19 @@ async function runEntry(entry: SiteEntry): Promise<void> {
 
       openAddModal()
       break
+    case 'go-board': {
+      const tabs = useBoardTabs()
+      tabs.restore()
+
+      if (rootFolder.value) {
+        tabs.open(rootFolder.value.id, rootFolder.value.name)
+        await navigateTo({ path: '/board', query: { folder: rootFolder.value.id } })
+        break
+      }
+
+      await navigateTo('/board')
+      break
+    }
     case 'open-side-panel':
       openSidePanel()
       break

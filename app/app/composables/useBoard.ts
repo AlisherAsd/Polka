@@ -37,6 +37,8 @@ export interface PlacedFileNode {
 export type PlacedNode = PlacedCardNode | PlacedFileNode
 
 interface BoardState {
+  /** Папка, чья доска сейчас загружена. */
+  folderId: Ref<string | null>
   nodes: Ref<BoardNode[]>
   loading: Ref<boolean>
   error: Ref<string | null>
@@ -48,6 +50,7 @@ let loadPromise: Promise<void> | null = null
 function ensureState(): BoardState {
   if (!sharedState) {
     sharedState = {
+      folderId: ref<string | null>(null),
       nodes: ref<BoardNode[]>([]),
       loading: ref(false),
       error: ref<string | null>(null),
@@ -76,66 +79,60 @@ export function useBoard() {
     return state.nodes.value.find((node) => node.itemId === key || node.noteId === key)
   }
 
-  /** Автоматическая раскладка: файл — рядом вместе с его карточкой. */
-  function fallbackPosition(kind: 'card' | 'file', index: number): { x: number; y: number } {
-    const columns = 4
-    const gap = 24
-
-    if (kind === 'card') {
-      return {
-        x: (index % columns) * (BOARD_CARD_WIDTH + gap) + gap,
-        y: Math.floor(index / columns) * (BOARD_FILE_HEIGHT + gap * 2) + gap,
-      }
-    }
-
-    // Файлы не расходятся в основной сетке: их место вычисляется от карточки.
-    return { x: gap, y: gap + index * (BOARD_FILE_HEIGHT + gap) }
-  }
-
-  /** Узлы для рендера: карточки + файлы, с координатами. */
+  /** Узлы для рендера: только то, что лежит на этой доске. */
+  /**
+   * Содержимое доски — только узлы этой доски (`board_nodes`).
+   *
+   * Раньше на доску попадали все карточки пользователя и все заметки, из-за
+   * чего «Мои знания» и любая папка выглядели одинаково. Связь карточек
+   * с доской убрана: на доске лежит только то, что пользователь положил сам.
+   */
   const placed = computed<PlacedNode[]>(() => {
     const byId = new Map(cards.value.map((card) => [card.id, card]))
+    const noteById = new Map(notes.value.map((note) => [note.id, note]))
     const result: PlacedNode[] = []
 
-    cards.value.forEach((card, index) => {
-      const saved = positionOf(card.id)
-      const fallback = fallbackPosition('card', index)
+    for (const node of state.nodes.value) {
+      if (node.itemId) {
+        const card = byId.get(node.itemId)
 
-      result.push({
-        kind: 'card',
-        key: card.id,
-        card,
-        x: saved?.x ?? fallback.x,
-        y: saved?.y ?? fallback.y,
-        width: saved?.width ?? BOARD_CARD_WIDTH,
-        height: saved?.height,
-      })
-    })
+        // Карточка ещё не загрузилась — пропускаем до следующего рендера.
+        if (!card) {
+          continue
+        }
 
-    // Файлы без карточки выстраиваются колонкой слева от сетки.
-    let orphanIndex = 0
+        result.push({
+          kind: 'card',
+          key: card.id,
+          card,
+          x: node.x,
+          y: node.y,
+          width: node.width ?? BOARD_CARD_WIDTH,
+          height: node.height,
+        })
 
-    notes.value.forEach((note) => {
-      const card = note.itemId ? byId.get(note.itemId) : undefined
-      const saved = positionOf(note.id)
+        continue
+      }
 
-      // Файл, у которого есть карточка, ставится справа от неё.
-      const cardNode = card ? result.find((node) => node.kind === 'card' && node.key === card.id) : undefined
-      const fallback = cardNode
-        ? { x: cardNode.x + cardNode.width + 24, y: cardNode.y }
-        : fallbackPosition('file', orphanIndex++)
+      if (node.noteId) {
+        const note = noteById.get(node.noteId)
 
-      result.push({
-        kind: 'file',
-        key: note.id,
-        note,
-        card,
-        x: saved?.x ?? fallback.x,
-        y: saved?.y ?? fallback.y,
-        width: saved?.width ?? BOARD_FILE_WIDTH,
-        height: saved?.height ?? BOARD_FILE_HEIGHT,
-      })
-    })
+        if (!note) {
+          continue
+        }
+
+        result.push({
+          kind: 'file',
+          key: note.id,
+          note,
+          card: note.itemId ? byId.get(note.itemId) : undefined,
+          x: node.x,
+          y: node.y,
+          width: node.width ?? BOARD_FILE_WIDTH,
+          height: node.height ?? BOARD_FILE_HEIGHT,
+        })
+      }
+    }
 
     return result
   })
@@ -151,21 +148,32 @@ export function useBoard() {
    * Загрузка позиций с сервера. Вызывать можно многократно: одновременно идёт
    * один запрос, повторный вызов после завершения перечитывает доску.
    */
-  async function init(): Promise<void> {
+  async function init(folderId: string): Promise<void> {
     if (!import.meta.client) {
       return
     }
 
-    if (loadPromise) {
+    // Без folderId (гость или пустая страница) — просто показываем доступное.
+    if (!folderId) {
+      state.nodes.value = []
+      state.folderId.value = null
+
+      return
+    }
+
+    // Другая папка — перечитываем доску, даже если она уже была загружена.
+    if (loadPromise && state.folderId.value === folderId) {
       return loadPromise
     }
+
+    state.folderId.value = folderId
 
     state.loading.value = true
     state.error.value = null
 
-    loadPromise = fetchBoard(apiBase)
-      .then((nodes) => {
-        state.nodes.value = nodes
+    loadPromise = fetchBoard(apiBase, folderId)
+      .then((board) => {
+        state.nodes.value = board.nodes
       })
       .catch(() => {
         state.error.value = 'Не удалось загрузить доску'
@@ -199,7 +207,7 @@ export function useBoard() {
 
     const node = state.nodes.value.find((item) => item.id === existing?.id || item.id === key)
 
-    void saveBoardNode(apiBase, key, {
+    void saveBoardNode(apiBase, state.folderId.value ?? '', key, {
       x,
       y,
       // Для карточек размер фиксированный, для файлов — сохраняем текущий.

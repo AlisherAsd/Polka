@@ -2,7 +2,8 @@
 // По умолчанию саммари сохраняется заметкой в папку `ai-voult`.
 import { chat } from '../utils/openrouter'
 import { userFromEvent } from '../utils/session'
-import { AI_FOLDER_ID, createNote, ensureAiFolder, toNote, type Note, type NoteRow } from '../utils/notes'
+import { createNote, toNote, type Note, type NoteRow } from '../utils/notes'
+import { AI_FOLDER_NAME, ensureUserAiFolder } from '../utils/ai-folder'
 import { optionalText } from '../utils/items'
 
 interface CardPayload {
@@ -83,7 +84,7 @@ export default defineEventHandler(async (event) => {
     try {
       const db = dbOf(event)
 
-      await ensureAiFolder(db)
+      const aiFolderId = ownerId ? await ensureUserAiFolder(db, ownerId) : null
 
       const single = cards.length === 1 ? cards[0] : undefined
       const itemId = optionalText(body.itemId) ?? optionalText(single?.id) ?? null
@@ -100,7 +101,7 @@ export default defineEventHandler(async (event) => {
         ? await db.first<{ id: string }>(
           `SELECT id FROM notes WHERE item_id = ? AND folder_id = ? AND ${ownerId ? 'user_id = ?' : 'user_id IS NULL'}`,
           itemId,
-          AI_FOLDER_ID,
+          aiFolderId,
           ...(ownerId ? [ownerId] : []),
         )
         : null
@@ -124,7 +125,7 @@ export default defineEventHandler(async (event) => {
         note = await createNote(db, {
           title,
           content,
-          folderId: AI_FOLDER_ID,
+          folderId: aiFolderId,
           itemId,
           url: source ?? null,
           userId: ownerId,

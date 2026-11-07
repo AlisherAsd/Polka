@@ -4,6 +4,29 @@
  * Монтируется в дефолтном лейауте и в страницах без лейаута.
  */
 const { state, answer } = useConfirm()
+
+/** Значение поля ввода (когда спрашиваем строку). */
+const value = ref<string>('')
+
+watch(
+  () => state.value.open,
+  (open) => {
+    if (open) {
+      value.value = ''
+    }
+  },
+)
+
+/** Подтверждение: строка (если спрашивали) или `true`. */
+function submit(): void {
+  const trimmed = value.value.trim()
+
+  if (state.value.input && trimmed.length === 0) {
+    return
+  }
+
+  answer(state.value.input ? trimmed : true)
+}
 </script>
 
 <template>
@@ -14,7 +37,20 @@ const { state, answer } = useConfirm()
     @update:open="(value: boolean) => { if (!value) answer(false) }"
   >
     <template #body>
-      <p v-if="state.description" class="text-sm leading-snug text-dim">{{ state.description }}</p>
+      <div class="flex flex-col gap-3">
+        <p v-if="state.description" class="text-sm leading-snug text-dim">{{ state.description }}</p>
+
+        <UInput
+          v-if="state.input"
+          v-model="value"
+          size="md"
+          :placeholder="state.input"
+          class="w-full"
+          :ui="{ base: 'rounded-xl' }"
+          autofocus
+          @keydown.enter.prevent="submit"
+        />
+      </div>
     </template>
 
     <template #footer>
@@ -35,7 +71,8 @@ const { state, answer } = useConfirm()
           size="md"
           :label="state.confirmLabel"
           class="rounded-xl px-5"
-          @click="answer(true)"
+          :disabled="Boolean(state.input) && value.trim().length === 0"
+          @click="submit"
         />
       </div>
     </template>

@@ -155,11 +155,18 @@ npx tauri build --bundles dmg app
 
 ### Адрес API
 
-По умолчанию `https://polka.alishersharipovtol.workers.dev`. Переопределяется:
+`NUXT_PUBLIC_API_BASE` **пустой по умолчанию** — и в dev, и в вебе запросы идут
+на тот же origin (`/api/**` обслуживает тот же воркер). Зашитых адресов в коде нет.
+
+Статике (натив) адрес нужен явно — его подставляет `npm run desktop:web`:
 
 ```bash
+# по умолчанию — прод-воркер, можно переопределить
 NUXT_PUBLIC_API_BASE=https://мой-api npm run desktop:build
 ```
+
+Если собрать статику без переменной, запросы уйдут в `tauri://`/`file://` и упадут
+сразу — это видно при запуске, а не через «тихий» переход на прод.
 
 Для загрузки UI из сети (без пересборки на каждое изменение) можно собрать
 `.app` с `devUrl` — см. `apps/desktop/src-tauri/tauri.conf.json`.

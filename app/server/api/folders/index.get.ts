@@ -1,17 +1,29 @@
-// GET /api/folders — папки базы знаний (по умолчанию есть только `ai-voult`).
-import { ensureAiFolder, toFolder, type FolderRow } from '../../utils/notes'
-import { scopeFor } from '../../utils/scope'
+// GET /api/folders — папки верхнего уровня: всегда начинается с «Мои знания».
+//
+// Каждая верхняя папка имеет доску (`boardId`), поэтому клиент может открыть
+// `/board/<folderId>` для любой из них.
+import { getDatabase } from '../../utils/db'
+import { ensureRootFolder, listFolders } from '../../utils/workspaces'
+import { ensureUserAiFolder } from '../../utils/ai-folder'
+import { currentUserId } from '../../utils/scope'
+import { toFolder, type FolderRow } from '../../utils/notes'
 
 export default defineEventHandler(async (event) => {
-  const db = dbOf(event)
+  const db = getDatabase(event)
+  const userId = await currentUserId(event)
 
-  await ensureAiFolder(db)
+  // Гость: папок нет вовсе. Раньше сюда попадали «общие» папки, созданные
+  // до привязки к пользователю (`user_id IS NULL`), из-за чего новый аккаунт
+  // видел чужие папки, но не видел свою «Мои знания».
+  if (!userId) {
+    return { folders: [], hasRoot: false }
+  }
 
-  const scope = await scopeFor(event)
-  const rows = await db.all<FolderRow>(
-    `SELECT * FROM folders WHERE ${scope.sql} ORDER BY created_at ASC`,
-    ...scope.params,
-  )
+  // Обе служебные папки создаются сразу: «Мои знания» и `ai-voult`.
+  await ensureRootFolder(db, userId)
+  await ensureUserAiFolder(db, userId)
 
-  return { folders: rows.map(toFolder) }
+  const folders = await listFolders(db, userId)
+
+  return { folders, hasRoot: true }
 })

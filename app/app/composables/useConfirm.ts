@@ -12,6 +12,8 @@ interface ConfirmState {
   confirmLabel: string
   /** Тональность кнопки подтверждения: удаление — `danger`. */
   danger: boolean
+  /** Если задано — модалка спрашивает строку (например, название папки). */
+  input: string
 }
 
 export function useConfirm() {
@@ -21,9 +23,10 @@ export function useConfirm() {
     description: '',
     confirmLabel: 'Подтвердить',
     danger: false,
+    input: '',
   }))
 
-  const pending = useState<{ resolve: ((value: boolean) => void) | null }>(
+  const pending = useState<{ resolve: ((value: boolean | string) => void) | null }>(
     'confirm-pending',
     () => ({ resolve: null }),
   )
@@ -34,7 +37,9 @@ export function useConfirm() {
     description?: string
     confirmLabel?: string
     danger?: boolean
-  }): Promise<boolean> {
+    /** Плейсхолдер поля ввода: если задан, спрашиваем строку вместо «да/нет». */
+    input?: string
+  }): Promise<boolean | string> {
     // Если предыдущий вопрос не закрыт — считаем его отменённым.
     pending.value.resolve?.(false)
 
@@ -44,14 +49,15 @@ export function useConfirm() {
       description: options.description ?? '',
       confirmLabel: options.confirmLabel ?? 'Подтвердить',
       danger: options.danger ?? false,
+      input: options.input ?? '',
     }
 
-    return new Promise<boolean>((resolve) => {
+    return new Promise<boolean | string>((resolve) => {
       pending.value = { resolve }
     })
   }
 
-  function answer(value: boolean): void {
+  function answer(value: boolean | string): void {
     pending.value.resolve?.(value)
     pending.value = { resolve: null }
     state.value = { ...state.value, open: false }
