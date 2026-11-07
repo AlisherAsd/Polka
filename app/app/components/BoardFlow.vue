@@ -148,6 +148,7 @@ watch(
     :nodes-draggable="!readonly"
     :nodes-connectable="false"
     :elements-selectable="!multiSelect"
+    :multi-selection-key-code="['Shift', 'Meta', 'Control']"
     :zoom-on-scroll="true"
     :zoom-on-pinch="true"
     :pan-on-drag="true"
