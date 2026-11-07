@@ -108,10 +108,6 @@ export function useCardPopover() {
 
       const text = res?.text?.trim() ?? ''
 
-      // Бэкенд сам складывает саммари файлом-карточкой в `ai-voult`
-      // (см. /api/summarize), поэтому дерево файлов перечитываем.
-      void useFiles().reload()
-
       if (text.length === 0) {
         // Модель ответила 200, но без текста — это ошибка, а не готовый ответ.
         const message = 'Модель не вернула текст, попробуйте ещё раз'
@@ -123,7 +119,7 @@ export function useCardPopover() {
       }
 
       setSummary(card.id, { status: 'ready', text })
-      notify.success('Саммари сохранено в ai-voult')
+      notify.success('Саммари готово')
     } catch (error) {
       const message = notify.messageOf(error, 'Не удалось получить саммари')
 

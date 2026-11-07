@@ -30,9 +30,6 @@ export interface Folder {
   createdAt: string
 }
 
-/** Служебная папка, куда ИИ кладёт саммари. */
-export const AI_FOLDER_ID = 'ai-voult'
-
 interface NotesResponse {
   notes: Note[]
 }
@@ -137,7 +134,7 @@ export async function deleteFolder(base: ApiBase, id: string): Promise<void> {
   await apiFetch(base, `/api/folders/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-/** Папки базы знаний (по умолчанию одна — `ai-voult`). */
+/** Папки базы знаний: «Мои знания» и созданные пользователем. */
 export async function fetchFolders(base: ApiBase): Promise<Folder[]> {
   const res = await apiFetch<FoldersResponse>(base, '/api/folders')
 

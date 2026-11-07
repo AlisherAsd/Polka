@@ -2,8 +2,7 @@
 //
 // Заметки папки не пропадают: у них `folder_id` становится NULL
 // (`ON DELETE SET NULL`), то есть файлы переезжают в корень базы знаний.
-// Системные папки — «Мои знания» (`is_root = 1`) и `ai-voult` — удалить нельзя.
-import { AI_FOLDER_ID, AI_FOLDER_NAME } from '../../utils/workspaces'
+// Корневую папку «Мои знания» (`is_root = 1`) удалить нельзя.
 import { dbOf } from '../../utils/notes'
 import { scopeFor } from '../../utils/scope'
 
@@ -18,8 +17,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'Нужен вход' })
   }
 
-  const existing = await db.first<{ id: string; name: string; is_root: number }>(
-    'SELECT id, name, is_root FROM folders WHERE id = ? AND user_id = ?',
+  const existing = await db.first<{ id: string; is_root: number }>(
+    'SELECT id, is_root FROM folders WHERE id = ? AND user_id = ?',
     id,
     scope.userId,
   )
@@ -31,11 +30,6 @@ export default defineEventHandler(async (event) => {
   // «Мои знания» — корень, на нём держится вся структура папок.
   if (existing.is_root === 1) {
     throw createError({ statusCode: 400, message: 'Папку «Мои знания» удалить нельзя' })
-  }
-
-  // `ai-voult` — системная папка ИИ (id с суффиксом пользователя или общий).
-  if (existing.name === AI_FOLDER_NAME || id === AI_FOLDER_ID) {
-    throw createError({ statusCode: 400, message: 'Служебную папку ai-voult удалить нельзя' })
   }
 
   // Заметки вынимаем из папки явно: полагаться только на FK в D1 не стоит

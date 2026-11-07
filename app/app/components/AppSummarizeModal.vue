@@ -9,6 +9,9 @@ import { apiFetch, useApiBase } from '~/api/client'
  * Модалка «Суммировать ИИ»: промпт + контекст выделенных файлов.
  * В `/api/summarize` уходит текст файлов (заметок); карточки нужны только,
  * чтобы привязать ответ к карточке и обновить её `summary`.
+ *
+ * Сервер сам ничего не сохраняет: после ответа пользователь выбирает папку
+ * и кладёт саммари туда файлом.
  */
 const props = defineProps<{
   /** Файлы (заметки), которые попадут в контекст. */
@@ -19,6 +22,7 @@ const props = defineProps<{
 
 const { open, closeModal } = useSummarizeModal()
 const { cards: stateCards, replaceCard } = useCards()
+const { folders, addNote } = useFiles()
 
 /** База API: пусто — тот же origin, иначе — внешний адрес (нативное приложение). */
 const apiBase = useApiBase()
@@ -28,6 +32,22 @@ const prompt = ref<string>('Сделай краткое саммари этих 
 const answer = ref<string>('')
 const pending = ref<boolean>(false)
 const failure = ref<string>('')
+
+/** Папка, в которую пользователь сохранит файл с саммари. */
+const targetFolderId = ref<string>('')
+const saving = ref<boolean>(false)
+const saved = ref<boolean>(false)
+
+const folderItems = computed(() =>
+  folders.value.map((folder) => ({ label: folder.name, value: folder.id })),
+)
+
+/** По умолчанию — «Мои знания», если она есть в списке. */
+const defaultFolderId = computed<string>(() => {
+  const root = folders.value.find((folder) => folder.isRoot === true)
+
+  return root?.id ?? folders.value[0]?.id ?? ''
+})
 
 /**
  * Сохраняет ответ ИИ в `summary` карточек — только у тех, где саммари ещё нет,
@@ -56,12 +76,21 @@ async function persistSummary(cards: readonly Card[], text: string): Promise<voi
 /** Нечего суммировать: нет ни одного файла в выделении. */
 const canSubmit = computed<boolean>(() => props.notes.length > 0)
 
+/** Файл саммари: заголовок берём у карточки, иначе у выделенной заметки. */
+const summaryTitle = computed<string>(() => {
+  const base = props.cards[0]?.title ?? props.notes[0]?.title ?? 'Саммари'
+
+  return `${base} — саммари`
+})
+
 function handleOpenChange(value: boolean): void {
   open.value = value
 
   if (value) {
     answer.value = ''
     failure.value = ''
+    saved.value = false
+    targetFolderId.value = defaultFolderId.value
   }
 }
 
@@ -73,6 +102,7 @@ async function submit(): Promise<void> {
   pending.value = true
   failure.value = ''
   answer.value = ''
+  saved.value = false
 
   try {
     const res = await apiFetch<{ text: string }>(apiBase, '/api/summarize', {
@@ -86,8 +116,6 @@ async function submit(): Promise<void> {
           description: note.content,
           url: note.url,
         })),
-        // Саммари складывается в `ai-voult` файлом, привязанным к карточке.
-        itemId: props.cards.length === 1 ? props.cards[0]?.id : undefined,
       },
     })
 
@@ -102,15 +130,48 @@ async function submit(): Promise<void> {
 
     await persistSummary(props.cards, res.text)
 
-    // Бэкенд сложил саммари файлом в `ai-voult` — обновляем дерево файлов.
-    await useFiles().reload()
+    if (!targetFolderId.value) {
+      targetFolderId.value = defaultFolderId.value
+    }
 
-    notify.success('Саммари сохранено в ai-voult')
+    notify.success('Саммари готово — выберите папку для файла')
   } catch (error) {
     failure.value = notify.messageOf(error, 'Не удалось получить ответ')
     notify.fail(error, 'Не удалось получить ответ')
   } finally {
     pending.value = false
+  }
+}
+
+/** Кладёт ответ модели файлом в выбранную папку. */
+async function saveToFolder(): Promise<void> {
+  const folder = folders.value.find((item) => item.id === targetFolderId.value)
+  const text = answer.value.trim()
+
+  if (!folder || text.length === 0 || saving.value || saved.value) {
+    return
+  }
+
+  const card = props.cards.length === 1 ? props.cards[0] : undefined
+  const note = props.notes[0]
+
+  saving.value = true
+
+  try {
+    await addNote({
+      title: summaryTitle.value,
+      content: card?.url ? `${text}\n\nИсточник: ${card.url}` : text,
+      folderId: folder.id,
+      itemId: card?.id ?? note?.itemId ?? null,
+      url: card?.url ?? note?.url ?? null,
+    })
+
+    saved.value = true
+    notify.success(`Файл добавлен в «${folder.name}»`)
+  } catch (error) {
+    notify.fail(error, 'Не удалось добавить файл')
+  } finally {
+    saving.value = false
   }
 }
 </script>
@@ -159,6 +220,31 @@ async function submit(): Promise<void> {
           <p class="whitespace-pre-wrap text-sm leading-snug text-ink">
             {{ answer }}
           </p>
+        </div>
+
+        <!-- После ответа: выбрать папку и сохранить саммари файлом -->
+        <div v-if="answer" class="flex flex-wrap items-center gap-2">
+          <USelect
+            v-model="targetFolderId"
+            :items="folderItems"
+            size="sm"
+            class="w-52"
+            placeholder="Папка"
+            aria-label="Папка для файла"
+          />
+
+          <UButton
+            type="button"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-file-plus"
+            :label="saved ? 'Файл добавлен' : 'Добавить в папку'"
+            class="rounded-xl"
+            :loading="saving"
+            :disabled="saving || saved || !targetFolderId"
+            @click="saveToFolder"
+          />
         </div>
       </div>
     </template>

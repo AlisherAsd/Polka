@@ -40,15 +40,14 @@ const notify = useNotify()
 const apiBase = useApiBase()
 
 /**
- * «Мои знания» и `ai-voult` — системные папки, удалять их нельзя.
- * Их id содержат id пользователя (`root-<uid>`, `ai-voult-<uid>`), поэтому
- * ориентируемся на флаг корня и имя, а не на конкретный id.
+ * «Мои знания» — системная папка: её удалить нельзя.
+ * Её id содержит id пользователя (`root-<uid>`), поэтому ориентируемся
+ * на флаг корня, а не на конкретный id.
  *
  * У файлов (заметок) такого ограничения нет — удалять можно любой.
  */
 const isProtectedFolder = computed<boolean>(
-  () => props.node.type === 'folder'
-    && (Boolean(props.node.isRoot) || props.node.name === 'ai-voult'),
+  () => props.node.type === 'folder' && Boolean(props.node.isRoot),
 )
 const canDelete = computed<boolean>(() => isAuth.value && !isProtectedFolder.value)
 

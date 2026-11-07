@@ -39,10 +39,6 @@ export interface FolderView {
   createdAt: string
 }
 
-/** Служебная папка ИИ на верхнем уровне — обычная папка со своей доской. */
-export const AI_FOLDER_ID = 'ai-voult'
-export const AI_FOLDER_NAME = 'ai-voult'
-
 /**
  * Гарантирует корневую папку «Мои знания» с доской и возвращает её.
  * Корень — такая же папка, как остальные (со своей доской), но её нельзя удалить.
@@ -173,16 +169,15 @@ export async function listFolders(db: Database, userId: string): Promise<FolderV
 }
 
 /**
- * Приводит список папок пользователя к базовому состоянию: остаются только
- * «Мои знания» (корень) и `ai-voult`. Остальные папки — включая подпапки —
- * удаляются, заметки из них переезжают в корень (не теряются).
+ * Приводит список папок пользователя к базовому состоянию: остаётся только
+ * «Мои знания» (корень). Остальные папки — включая подпапки — удаляются,
+ * заметки из них переезжают в корень (не теряются).
  *
  * Вызывается при создании аккаунта; вручную — ручкой `/api/folders/reset`.
  */
 export async function resetFoldersToBaseline(db: Database, userId: string): Promise<void> {
   const { folder: root } = await ensureRootFolder(db, userId)
 
-  // Удалять нельзя корень и ai-voult.
   await db.run(
     `UPDATE notes SET folder_id = ?
      WHERE user_id = ? AND folder_id IS NOT NULL AND folder_id <> ?`,
@@ -194,8 +189,7 @@ export async function resetFoldersToBaseline(db: Database, userId: string): Prom
   await db.run(
     `DELETE FROM folders
      WHERE user_id = ?
-       AND is_root = 0
-       AND name <> 'ai-voult'`,
+       AND is_root = 0`,
     userId,
   )
 }

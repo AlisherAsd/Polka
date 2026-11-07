@@ -1,4 +1,4 @@
-// GET /api/notes — заметки. Опционально `?folderId=ai-voult` и `?itemId=<карточка>`.
+// GET /api/notes — заметки. Опционально `?folderId=<папка>` и `?itemId=<карточка>`.
 import { toNote, type NoteRow } from '../../utils/notes'
 import { scopeFor } from '../../utils/scope'
 

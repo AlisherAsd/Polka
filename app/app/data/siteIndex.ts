@@ -98,7 +98,7 @@ const SECTIONS: SiteEntry[] = [
     id: 'section-files',
     title: 'Файлы и папки',
     kind: 'section',
-    keywords: ['заметки', 'папка', 'ai-voult', 'удалить файл'],
+    keywords: ['заметки', 'папка', 'файл', 'удалить файл'],
     to: '/manual#files',
   },
   {

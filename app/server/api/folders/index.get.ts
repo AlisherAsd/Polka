@@ -4,7 +4,6 @@
 // `/board/<folderId>` для любой из них.
 import { getDatabase } from '../../utils/db'
 import { ensureRootFolder, listFolders } from '../../utils/workspaces'
-import { ensureUserAiFolder } from '../../utils/ai-folder'
 import { currentUserId } from '../../utils/scope'
 import { toFolder, type FolderRow } from '../../utils/notes'
 
@@ -19,9 +18,8 @@ export default defineEventHandler(async (event) => {
     return { folders: [], hasRoot: false }
   }
 
-  // Обе служебные папки создаются сразу: «Мои знания» и `ai-voult`.
+  // «Мои знания» создаётся сразу: это корень дерева папок.
   await ensureRootFolder(db, userId)
-  await ensureUserAiFolder(db, userId)
 
   const folders = await listFolders(db, userId)
 

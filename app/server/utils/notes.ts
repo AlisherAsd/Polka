@@ -2,9 +2,6 @@
 import type { H3Event } from 'h3'
 import { getDatabase, type Database } from './db'
 
-/** Служебная папка, куда ИИ складывает саммари карточек. */
-export const AI_FOLDER_ID = 'ai-voult'
-
 export interface Folder {
   id: string
   name: string
@@ -80,7 +77,7 @@ export function toNote(row: NoteRow): Note {
 
 /**
  * Проверяет, что папка существует и доступна пользователю (`null` — его own
- * папки или «общие», включая служебную `ai-voult`).
+ * папки или «общие»).
  */
 export async function folderExists(
   db: Database,
@@ -96,18 +93,6 @@ export async function folderExists(
     : await db.first<{ id: string }>('SELECT id FROM folders WHERE id = ? AND user_id IS NULL', folderId)
 
   return row !== null
-}
-
-/** Гарантирует служебную папку `ai-voult` (на случай чистой базы без миграции). */
-export async function ensureAiFolder(db: Database): Promise<void> {
-  await db.run(
-    `INSERT INTO folders (id, name, slug, created_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT (id) DO NOTHING`,
-    AI_FOLDER_ID,
-    AI_FOLDER_ID,
-    AI_FOLDER_ID,
-    new Date().toISOString(),
-  )
 }
 
 /** Создаёт заметку и возвращает её серверное представление. */

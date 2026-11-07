@@ -10,7 +10,6 @@ import {
 } from '../../utils/auth'
 import { createSession, setSessionCookie } from '../../utils/session'
 import { resetFoldersToBaseline } from '../../utils/workspaces'
-import { ensureUserAiFolder } from '../../utils/ai-folder'
 import { clientPlatform } from '../../utils/client-info'
 
 export default defineEventHandler(async (event) => {
@@ -69,8 +68,7 @@ export default defineEventHandler(async (event) => {
     created_at: now,
   }
 
-  // Базовое состояние папок: «Мои знания» + ai-voult, без лишних и вложенных.
-  await ensureUserAiFolder(db, id)
+  // Базовое состояние папок: только «Мои знания», без лишних и вложенных.
   await resetFoldersToBaseline(db, id)
 
   const { token, expiresAt } = await createSession(event, id)
