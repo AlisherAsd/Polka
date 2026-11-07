@@ -567,10 +567,7 @@ onBeforeUnmount(() => {
         />
       </div>
     </div>
-    <!--
-      Шапка: на мобильном hint уходит отдельной строкой под зум-контролы,
-      на десктопе всё в одну строку.
-    -->
+    <!-- Шапка: подсказка стоит сразу за названием доски, зум — у правого края. -->
     <header
       class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
     >
@@ -595,6 +592,8 @@ onBeforeUnmount(() => {
         </UTooltip>
       </div>
 
+      <span class="min-w-0 truncate text-xs text-mute">{{ hint }}</span>
+
       <UButton
         v-if="!shareSlug && isAuth && currentFolder"
         type="button"
@@ -608,9 +607,6 @@ onBeforeUnmount(() => {
         @click="toggleBoardVisibility"
       />
 
-      <span class="order-last w-full min-w-0 truncate text-xs text-mute sm:order-none sm:w-auto">
-        {{ hint }}
-      </span>
 
       <div class="ml-auto flex shrink-0 items-center gap-1">
         <UButton
