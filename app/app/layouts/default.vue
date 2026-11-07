@@ -17,9 +17,7 @@ onMounted(() => {
  */
 const route = useRoute()
 const minimal = computed<boolean>(
-  () => route.path === '/board'
-    && String(route.query.share ?? '').length > 0
-    && String(route.query.full ?? '') === '1',
+  () => route.path === '/board' && String(route.query.full ?? '') === '1',
 )
 </script>
 

@@ -30,10 +30,8 @@ const folderId = computed<string>(() => String(route.query.folder ?? activeId.va
 const queryFolder = computed<string>(() => String(route.query.folder ?? ''))
 /** Публичная доска: `/board?share=<slug>` — открывается без входа, только чтение. */
 const shareSlug = computed<string>(() => String(route.query.share ?? ''))
-/** Публичная доска без хедера и сайдбара — открывается в новой вкладке. */
-const fullView = computed<boolean>(
-  () => shareSlug.value.length > 0 && String(route.query.full ?? '') === '1',
-)
+/** Доска без интерфейса приложения — открывается в новой вкладке. */
+const fullView = computed<boolean>(() => String(route.query.full ?? '') === '1')
 const currentFolder = computed(() => topFolders.value.find((folder) => folder.id === folderId.value) ?? null)
 const boardTitle = computed<string>(() =>
   shareSlug.value
@@ -539,7 +537,7 @@ onBeforeUnmount(() => {
   >
     <!-- Табы открытых досок: один таб = доска одной папки -->
     <div
-      v-if="!shareSlug && tabs.length > 0"
+      v-if="!fullView && !shareSlug && tabs.length > 0"
       class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-line bg-surface px-2 py-1.5 sm:px-4"
       role="tablist"
       aria-label="Открытые доски"
@@ -579,10 +577,10 @@ onBeforeUnmount(() => {
     <header
       class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
     >
-      <div class="flex min-w-0 shrink-0 flex-col gap-0.5">
+      <div class="flex min-w-0 shrink-0 items-center gap-2">
         <h1 class="max-w-[220px] truncate text-base font-semibold text-ink sm:text-lg">{{ boardTitle }}</h1>
 
-        <!-- Публичная доска: кружок с буквой и полный email автора -->
+        <!-- Публичная доска: кружок с буквой и полный email автора — в строке с названием -->
         <UTooltip
           v-if="shareSlug && sharedAuthor"
           :text="`Это доска пользователя «${sharedAuthor}»`"
@@ -629,7 +627,7 @@ onBeforeUnmount(() => {
       />
 
       <UButton
-        v-if="!shareSlug && isAuth && currentFolder"
+        v-if="!fullView && !shareSlug && isAuth && currentFolder"
         type="button"
         color="neutral"
         variant="outline"
@@ -639,6 +637,20 @@ onBeforeUnmount(() => {
         class="rounded-lg"
         :loading="sharing"
         @click="toggleBoardVisibility"
+      />
+
+      <!-- Своя доска без интерфейса — в новой вкладке, рядом с публикацией -->
+      <UButton
+        v-if="!fullView && !shareSlug && isAuth && currentFolder"
+        :to="`/board?folder=${folderId}&full=1`"
+        target="_blank"
+        rel="noopener noreferrer"
+        color="neutral"
+        variant="outline"
+        size="xs"
+        icon="i-lucide-maximize-2"
+        label="Открыть полностью"
+        class="rounded-lg"
       />
 
 
@@ -689,7 +701,7 @@ onBeforeUnmount(() => {
     <div class="relative min-h-0 flex-1 overflow-auto bg-app">
       <!-- Нет ни одной открытой доски (вкладки закрыты) -->
       <EmptyState
-        v-if="!shareSlug && tabs.length === 0"
+        v-if="!fullView && !shareSlug && tabs.length === 0"
         title="Откройте доску"
         description="Нажмите на папку в панели «Файлы» — её доска откроется здесь во вкладке."
         class="mx-auto max-w-md"
