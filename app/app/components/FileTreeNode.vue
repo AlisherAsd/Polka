@@ -39,9 +39,23 @@ const confirm = useConfirm()
 const notify = useNotify()
 const apiBase = useApiBase()
 
-/** Служебную `ai-voult` удалить нельзя. */
-const isServiceFolder = computed<boolean>(() => props.node.id === 'ai-voult')
-const canDelete = computed<boolean>(() => isAuth.value && props.node.id !== 'knowledge' && !isServiceFolder.value)
+/**
+ * «Мои знания» и `ai-voult` — системные папки, удалять их нельзя.
+ * Их id содержат id пользователя (`root-<uid>`, `ai-voult-<uid>`), поэтому
+ * ориентируемся на флаг корня и имя, а не на конкретный id.
+ *
+ * У файлов (заметок) такого ограничения нет — удалять можно любой.
+ */
+const isProtectedFolder = computed<boolean>(
+  () => props.node.type === 'folder'
+    && (Boolean(props.node.isRoot) || props.node.name === 'ai-voult'),
+)
+const canDelete = computed<boolean>(() => isAuth.value && !isProtectedFolder.value)
+
+/** Подпись кнопки «⋯»: у папки и файла меню называется по-разному. */
+const actionsLabel = computed<string>(
+  () => `Действия ${isFolder.value ? 'с папкой' : 'с файлом'} «${props.node.name}»`,
+)
 
 const pending = ref<boolean>(false)
 
@@ -183,16 +197,16 @@ function handleClick(): void {
       <UIcon v-if="isFolder && hasChildren" name="i-lucide-chevron-right"
         class="size-4 shrink-0 text-mute transition-transform" :class="isOpen ? 'rotate-90' : 'rotate-0'" />
 
-      <!-- Действия в одном меню: копировать, клонировать, удалить, к доске -->
+      <!-- Действия в одном меню: папка — ссылка/копия/доска/удаление, файл — удаление -->
       <UPopover
-        v-if="isFolder && isAuth"
+        v-if="isAuth"
         :content="{ side: 'bottom', align: 'start', sideOffset: 6 }"
       >
         <button
           type="button"
           class="shrink-0 rounded-md p-0.5 text-mute opacity-0 transition-opacity hover:bg-app hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
-          :aria-label="`Действия с папкой «${node.name}»`"
-          :title="`Действия с папкой «${node.name}»`"
+          :aria-label="actionsLabel"
+          :title="actionsLabel"
           @click.stop
           @pointerdown.stop
         >
@@ -201,22 +215,25 @@ function handleClick(): void {
 
         <template #content>
           <div class="flex w-44 flex-col p-1 text-xs">
-            <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="handleShare">
-              <UIcon name="i-lucide-link" class="size-3.5 text-mute" />
-              Скопировать ссылку
-            </button>
+            <template v-if="isFolder">
+              <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="handleShare">
+                <UIcon name="i-lucide-link" class="size-3.5 text-mute" />
+                Скопировать ссылку
+              </button>
 
-            <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="handleCopy">
-              <UIcon name="i-lucide-copy" class="size-3.5 text-mute" />
-              Клонировать
-            </button>
+              <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="handleCopy">
+                <UIcon name="i-lucide-copy" class="size-3.5 text-mute" />
+                Клонировать
+              </button>
 
-            <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="openFolderBoard">
-              <UIcon name="i-lucide-layout-dashboard" class="size-3.5 text-mute" />
-              Перейти к доске
-            </button>
+              <button type="button" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app" @click.stop="openFolderBoard">
+                <UIcon name="i-lucide-layout-dashboard" class="size-3.5 text-mute" />
+                Перейти к доске
+              </button>
+            </template>
 
             <button
+              v-if="canDelete"
               type="button"
               class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[#b3261e] hover:bg-app"
               @click.stop="handleDelete"
