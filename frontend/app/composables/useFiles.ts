@@ -1,6 +1,6 @@
 import { computed, readonly, ref } from 'vue'
 import type { Ref } from 'vue'
-import { createNote, fetchFolders, fetchNotes } from '~/api/notes'
+import { createNote, deleteFolder, deleteNote, fetchFolders, fetchNotes } from '~/api/notes'
 import { useApiBase } from '~/api/client'
 import type { Folder, Note } from '~/api/notes'
 import { TREE_ROOT_ID, buildFileTree } from '~/utils/fileTree'
@@ -121,6 +121,43 @@ export function useFiles() {
     return note
   }
 
+  /**
+   * Удаляет папку пользователя. Заметки внутри остаются — сервер обнуляет
+   * их `folder_id`, поэтому после перезагрузки они окажутся в корне.
+   */
+  async function removeFolder(folderId: string): Promise<void> {
+    const folder = state.folders.value.find((item) => item.id === folderId)
+
+    try {
+      await deleteFolder(apiBase, folderId)
+
+      state.folders.value = state.folders.value.filter((item) => item.id !== folderId)
+      state.notes.value = state.notes.value.map((note) =>
+        note.folderId === folderId ? { ...note, folderId: null } : note,
+      )
+
+      notify.success(`Папка «${folder?.name ?? folderId}» удалена`)
+    } catch (err) {
+      notify.fail(err, 'Не удалось удалить папку')
+      throw err
+    }
+  }
+
+  /** Удаляет заметку (файл). */
+  async function removeNote(noteId: string): Promise<void> {
+    const note = state.notes.value.find((item) => item.id === noteId)
+
+    try {
+      await deleteNote(apiBase, noteId)
+
+      state.notes.value = state.notes.value.filter((item) => item.id !== noteId)
+      notify.success(`Файл «${note?.title ?? noteId}» удалён`)
+    } catch (err) {
+      notify.fail(err, 'Не удалось удалить файл')
+      throw err
+    }
+  }
+
   return {
     folders,
     notes,
@@ -133,5 +170,7 @@ export function useFiles() {
     notesInFolder,
     noteForItem,
     addNote,
+    removeFolder,
+    removeNote,
   }
 }

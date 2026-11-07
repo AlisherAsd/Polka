@@ -1,5 +1,14 @@
 <script setup lang="ts">
-const { open } = useSidePanel()
+/** Вторая панель: открыта/закрыта, ширина и состояние перетаскивания. */
+const { open, width: panelWidth, setWidth, restoreWidth } = useSidePanel()
+
+/** Пока тянут разделитель, анимацию ширины выключаем. */
+const resizing = ref<boolean>(false)
+
+onMounted(() => {
+  // Ширина, которую пользователь выставил в прошлый раз.
+  restoreWidth()
+})
 </script>
 
 <template>
@@ -36,11 +45,25 @@ const { open } = useSidePanel()
         фиксированной шторкой справа на весь экран.
       -->
       <div
-        class="hidden shrink-0 overflow-hidden transition-[width,translate,opacity] duration-300 ease-in-out will-change-[width] sm:block"
-        :class="open ? 'w-56 border-r border-line opacity-100' : 'w-0 border-r-0 opacity-0'">
-        <SecondSidebar class="transition-transform duration-300 ease-in-out"
-          :class="open ? 'translate-x-0' : '-translate-x-56'" />
+        class="hidden shrink-0 overflow-hidden sm:block"
+        :class="[
+          open ? 'opacity-100' : 'opacity-0',
+          // Пока тянем разделитель — без transition, иначе ширина «плывёт».
+          resizing ? '' : 'transition-[width,opacity] duration-300 ease-in-out',
+        ]"
+        :style="{ width: open ? `${panelWidth}px` : '0px' }"
+      >
+        <SecondSidebar :style="{ width: `${panelWidth}px` }" />
       </div>
+
+      <!-- Перетаскивание ширины панели -->
+      <SidePanelResizer
+        v-if="open"
+        class="hidden sm:block"
+        :width="panelWidth"
+        @resize="setWidth"
+        @active="resizing = $event"
+      />
 
       <!-- Мобильная шторка файлов -->
       <div v-if="open" class="fixed inset-0 z-40 bg-black/40 sm:hidden" aria-hidden="true" @click="open = false" />

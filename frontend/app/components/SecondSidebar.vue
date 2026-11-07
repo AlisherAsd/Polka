@@ -35,10 +35,10 @@ function handleToggle(id: string): void {
 
 <template>
   <aside
-    class="flex h-full w-full flex-col gap-0.5 bg-surface p-3"
+    class="flex h-full w-full min-w-0 flex-col items-stretch gap-0.5 overflow-hidden bg-surface p-3 text-left"
     aria-label="Файлы"
   >
-    <p class="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-mute">
+    <p class="w-full px-2 pb-1 text-left text-xs font-semibold uppercase tracking-wide text-mute">
       Файлы
     </p>
 
@@ -52,7 +52,8 @@ function handleToggle(id: string): void {
       compact
     />
 
-    <div v-else class="min-h-0 flex-1 overflow-y-auto">
+    <!-- Список прижат к левому краю: при растягивании панели дерево не центрируется -->
+    <div v-else class="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
       <FileTreeNode
         v-for="node in tree"
         :key="node.id"

@@ -115,6 +115,11 @@ export async function createFolder(
   return res.folder
 }
 
+/** Удаляет папку: заметки остаются и переезжают в корень. */
+export async function deleteFolder(base: ApiBase, id: string): Promise<void> {
+  await apiFetch(base, `/api/folders/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
 /** Папки базы знаний (по умолчанию одна — `ai-voult`). */
 export async function fetchFolders(base: ApiBase): Promise<Folder[]> {
   const res = await apiFetch<FoldersResponse>(base, '/api/folders')
