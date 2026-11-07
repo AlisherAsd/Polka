@@ -41,3 +41,6 @@ app/.wrangler/
 
 # Rust / Tauri
 apps/desktop/src-tauri/target/
+
+# Собранные инсталляторы для раздачи (dmg/zip), не коммитим
+apps/build/
