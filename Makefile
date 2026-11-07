@@ -15,8 +15,11 @@ TMP_JSON := $(CURDIR)/.wrangler/d1.json
 WRANGLER := $(XDG) npx wrangler
 DB_NAME := polka-db
 WRANGLER_CFG := wrangler.jsonc
+# Куда кладём готовые инсталляторы для раздачи (папка в .gitignore).
+BUILD_DIR := $(CURDIR)/apps/build
+DMG_DIR := $(CURDIR)/apps/desktop/src-tauri/target/release/bundle/dmg
 
-.PHONY: help install dev build check migrate deploy-local db-create db-id migrate-remote secret ship setup clean
+.PHONY: help install dev build check migrate deploy-local db-create db-id migrate-remote secret ship setup clean dmg app
 
 help: ## Показать список команд
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -81,6 +84,18 @@ setup: install db-create migrate ## С нуля: зависимости + баз
 	@echo "  2) make migrate-remote — миграции в боевую базу"
 	@echo "  3) make secret         — OPENROUTER_KEY в секреты воркера"
 	@echo "  4) make ship           — проверка + сборка + деплой"
+
+dmg: ## Собрать .dmg для macOS (arm64) и положить в apps/build
+	@# `tauri build` сам пересоберёт статику фронта (beforeBuildCommand).
+	cd apps/desktop && npx tauri build --bundles dmg
+	@mkdir -p "$(BUILD_DIR)"
+	@cp "$(DMG_DIR)"/*.dmg "$(BUILD_DIR)/"
+	@echo "✔ готово:"
+	@ls -lh "$(BUILD_DIR)"/*.dmg
+
+app: ## Собрать .app для macOS (arm64) без .dmg
+	cd apps/desktop && npx tauri build --bundles app
+	@echo "✔ $(CURDIR)/apps/desktop/src-tauri/target/release/bundle/macos/Полка.app"
 
 ship: check build ## Проверки + сборка + деплой на Cloudflare
 	$(WRANGLER) deploy
