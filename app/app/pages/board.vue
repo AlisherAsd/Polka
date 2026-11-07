@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { Card } from '~/types/card'
 import type { Note } from '~/api/notes'
-import { createShare as createShareRequest, fetchShares as fetchSharesRequest, revokeShare as revokeShareRequest } from '~/api/shares'
+import {
+  createShare as createShareRequest,
+  fetchShares as fetchSharesRequest,
+  revokeShare as revokeShareRequest,
+} from '~/api/shares'
 import type { Share } from '~/api/shares'
 import { useApiBase } from '~/api/client'
 
 /**
- * Страница «Доска»: сверху табы открытых досок (по одному на папку),
- * ниже — холст активной доски.
+ * Страница «Доска»: табы открытых досок и холст на Vue Flow.
  *
- * Доска открывается кликом по папке в панели «Файлы». Активная вкладка
- * фиксируется в адресе (`/board?folder=<id>`), поэтому ссылкой можно
- * поделиться, а после перезагрузки контекст сохраняется.
+ * Холст даёт сама библиотека (бесконечное поле, пан, зум, миникарта,
+ * выделение, перетаскивание), страница отвечает за данные: какую доску
+ * показать, публикацию и сохранение позиций.
  */
-const { cards } = useCards()
 const { placed, links, init: initBoard, initShared, sharedTitle, sharedAuthor, moveNode } = useBoard()
 const { notes, topFolders, rootFolder } = useFiles()
 const { tabs, activeId, restore, open, activate, close, rename, prune } = useBoardTabs()
@@ -24,7 +26,6 @@ const apiBase = useApiBase()
 const notify = useNotify()
 const createShare = createShareRequest
 
-/** Полноэкранный режим публичной доски: `/board?share=<slug>&full=1`. */
 /** Активная доска: из адреса (`?folder=`) или последняя открытая вкладка. */
 const folderId = computed<string>(() => String(route.query.folder ?? activeId.value ?? ''))
 const queryFolder = computed<string>(() => String(route.query.folder ?? ''))
@@ -38,6 +39,7 @@ const boardTitle = computed<string>(() =>
     ? (sharedTitle.value ?? 'Доска')
     : (currentFolder.value?.name ?? 'Доска'),
 )
+
 /** Первая буква email — для кружка-аватара автора публичной доски. */
 const authorInitial = computed<string>(() => {
   const email = sharedAuthor.value?.trim() ?? ''
@@ -91,8 +93,6 @@ async function loadShares(): Promise<void> {
   }
 }
 
-// Список ссылок грузим, когда станет известен вход (watch ниже, после isAuth).
-
 /** Ссылка на полноэкранный вид текущей доски. */
 function fullBoardHref(): string {
   const query = shareSlug.value
@@ -104,8 +104,7 @@ function fullBoardHref(): string {
 
 /**
  * «Открыть полностью»: в браузере — новая вкладка, в нативном приложении —
- * тот же экран (Tauri без плагина не открывает новые окна, `target=_blank`
- * там просто ничего не делает).
+ * тот же экран (Tauri без плагина не открывает новые окна).
  */
 async function openFullBoard(): Promise<void> {
   const href = fullBoardHref()
@@ -136,8 +135,7 @@ async function toggleBoardVisibility(): Promise<void> {
 
   try {
     if (existing) {
-      // Список мог устареть (ссылку на папку могли создать в другой вкладке),
-      // поэтому перед отзывом перечитываем его и снимаем все ссылки папки.
+      // Список мог устареть: перечитываем и снимаем все ссылки папки.
       await loadShares()
 
       const revoke = [...folderShares.value]
@@ -181,7 +179,7 @@ function closeTab(id: string): void {
     void router.replace({ query: {} })
   }
 }
-const { scale, zoomIn, zoomOut, reset, setScale } = useBoardZoom()
+
 const { openModal: openSummarize } = useSummarizeModal()
 
 /** Саммари требует доступ к ИИ (свой ключ или премиум) и вход в аккаунт. */
@@ -208,34 +206,9 @@ watch(currentFolder, (folder) => {
   }
 })
 
-const CARD_WIDTH = 200
-const CARD_HEIGHT = 220
-const COLUMN_GAP = 24
-const COLUMNS = 4
-
-/** Логический размер холста: растёт вместе с узлами, чтобы всё было доступно. */
-const CANVAS_WIDTH = computed<number>(() => {
-  const right = placed.value.reduce((max, node) => Math.max(max, node.x + node.width), 0)
-
-  return Math.max(COLUMNS * (CARD_WIDTH + COLUMN_GAP) + COLUMN_GAP, right + COLUMN_GAP * 2)
-})
-
-const CANVAS_HEIGHT = computed<number>(() => {
-  const bottom = placed.value.reduce(
-    (max, node) => Math.max(max, node.y + (node.height ?? CARD_HEIGHT)),
-    0,
-  )
-
-  return Math.max(1200, bottom + COLUMN_GAP * 2)
-})
-
 /** id выделенных узлов (карточек и файлов). */
 const selectedIds = ref<string[]>([])
 
-/**
- * Позиции перечитываем при каждом заходе на страницу: плагин грузит их на старте,
- * а после переходов (или сохранений с другого устройства) они могли измениться.
- */
 onMounted(() => {
   // Публичная доска: свои вкладки и данные не трогаем, грузим чужую доску.
   if (shareSlug.value) {
@@ -315,9 +288,8 @@ const isEmpty = computed<boolean>(() => placed.value.length === 0)
 const hint = computed<string>(() =>
   selectedIds.value.length > 0
     ? `выбрано: ${selectedIds.value.length}`
-    : 'перетащите карточку или выделите рамкой',
+    : 'перетаскивайте карточки · Shift + рамка — выделение',
 )
-const percent = computed<number>(() => Math.round(scale.value * 100))
 
 /** Карточки из выделения: к ним привязывается результат саммари. */
 const selectedCards = computed<Card[]>(() =>
@@ -348,221 +320,15 @@ const selectedNotes = computed<Note[]>(() => {
   return notes.value.filter((note) => Boolean(note.itemId) && cardIds.has(note.itemId as string))
 })
 
-function handleSlider(event: Event): void {
-  const target = event.target
-
-  if (target instanceof HTMLInputElement) {
-    setScale(Number(target.value) / 100)
-  }
+/** Vue Flow: узел перетащили — сохраняем позицию. */
+function handleFlowMove(key: string, x: number, y: number): void {
+  moveNode(key, x, y)
 }
 
-/** Клик по карточке: без Shift — только она, с Shift — добавить/убрать. */
-function toggleCard(id: string, additive: boolean): void {
-  if (additive) {
-    selectedIds.value = selectedIds.value.includes(id)
-      ? selectedIds.value.filter((selectedId) => selectedId !== id)
-      : [...selectedIds.value, id]
-    return
-  }
-
-  selectedIds.value =
-    selectedIds.value.length === 1 && selectedIds.value[0] === id ? [] : [id]
+/** Vue Flow: изменилось выделение. */
+function handleFlowSelect(keys: string[]): void {
+  selectedIds.value = keys
 }
-
-// --- Перетаскивание узлов (карточек и файлов) ---
-
-/** Ссылки на узлы: нужны, чтобы сдвигать группу и сохранять позиции. */
-type NodeRef = { setPosition: (x: number, y: number) => void }
-const nodeRefs = new Map<string, NodeRef>()
-
-let dragOrigin: Map<string, { x: number; y: number }> | null = null
-
-function setNodeRef(key: string, component: unknown): void {
-  if (component) {
-    nodeRefs.set(key, component as NodeRef)
-  } else {
-    nodeRefs.delete(key)
-  }
-}
-
-function handleDragStart(key: string): void {
-  if (!selectedIds.value.includes(key)) {
-    selectedIds.value = [key]
-  }
-
-  dragOrigin = new Map(
-    placed.value
-      .filter((item) => selectedIds.value.includes(item.key))
-      .map((item) => [item.key, { x: item.x, y: item.y }]),
-  )
-}
-
-function handleDrag(key: string, dx: number, dy: number): void {
-  if (!dragOrigin) {
-    return
-  }
-
-  for (const [otherKey, origin] of dragOrigin) {
-    if (otherKey === key) {
-      continue
-    }
-
-    nodeRefs.get(otherKey)?.setPosition(origin.x + dx, origin.y + dy)
-  }
-
-  // Линии связи идут за блоками во время перетаскивания.
-  tick.value++
-}
-
-/** По окончании переноса фиксируем позиции всех сдвинутых узлов в D1. */
-function handleDragEnd(key: string, dx: number, dy: number): void {
-  if (dragOrigin) {
-    for (const [otherKey, origin] of dragOrigin) {
-      moveNode(otherKey, Math.round(origin.x + dx), Math.round(origin.y + dy))
-    }
-  }
-
-  dragOrigin = null
-}
-
-// --- Связи между карточками и файлами ---
-
-/** Тик, который дёргаем после перетаскивания, чтобы пересчитать линии. */
-const tick = ref<number>(0)
-
-function positionOfKey(key: string): { x: number; y: number; width: number; height?: number } | undefined {
-  const node = placed.value.find((item) => item.key === key)
-
-  return node ? { x: node.x, y: node.y, width: node.width, height: node.height } : undefined
-}
-
-/**
- * Линии от правого края карточки к левому краю файла. Точки берём из DOM-рефов,
- * чтобы линия шла за блоком во время перетаскивания, а не только после него.
- */
-const edges = computed(() => {
-  void tick.value
-
-  const fallbackHeight = CARD_HEIGHT
-
-  return links.value.flatMap((link) => {
-    const fromRef = nodeRefs.get(link.itemId)
-    const toRef = nodeRefs.get(link.noteId)
-    const fromBase = positionOfKey(link.itemId)
-    const toBase = positionOfKey(link.noteId)
-
-    if (!fromBase || !toBase) {
-      return []
-    }
-
-    const from = (fromRef as unknown as { position?: () => { x: number; y: number; width: number; height: number } })?.position?.()
-      ?? { ...fromBase, height: fromBase.height ?? fallbackHeight }
-    const to = (toRef as unknown as { position?: () => { x: number; y: number; width: number; height: number } })?.position?.()
-      ?? { ...toBase, height: toBase.height ?? 120 }
-
-    const x1 = from.x + from.width
-    const y1 = from.y + from.height / 2
-    const x2 = to.x
-    const y2 = to.y + to.height / 2
-    const mid = (x1 + x2) / 2
-
-    return [{
-      key: `${link.itemId}:${link.noteId}`,
-      d: `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`,
-    }]
-  })
-})
-
-// --- Рамка выделения на пустом месте холста ---
-
-const canvasEl = ref<HTMLElement | null>(null)
-const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null)
-const additiveSelect = ref<boolean>(false)
-
-let marqueeStart: { x: number; y: number } | null = null
-let baseSelection: string[] = []
-
-function canvasScale(): number {
-  return scale.value || 1
-}
-
-function startMarquee(event: PointerEvent): void {
-  if (event.button !== 0 || !canvasEl.value) {
-    return
-  }
-
-  const rect = canvasEl.value.getBoundingClientRect()
-  const s = canvasScale()
-
-  marqueeStart = {
-    x: (event.clientX - rect.left) / s,
-    y: (event.clientY - rect.top) / s,
-  }
-  additiveSelect.value = event.shiftKey
-  baseSelection = [...selectedIds.value]
-  marquee.value = { x: marqueeStart.x, y: marqueeStart.y, w: 0, h: 0 }
-
-  window.addEventListener('pointermove', moveMarquee)
-  window.addEventListener('pointerup', endMarquee)
-}
-
-function moveMarquee(event: PointerEvent): void {
-  if (!marqueeStart || !canvasEl.value) {
-    return
-  }
-
-  const rect = canvasEl.value.getBoundingClientRect()
-  const s = canvasScale()
-  const currentX = (event.clientX - rect.left) / s
-  const currentY = (event.clientY - rect.top) / s
-
-  const x = Math.min(marqueeStart.x, currentX)
-  const y = Math.min(marqueeStart.y, currentY)
-  const w = Math.abs(currentX - marqueeStart.x)
-  const h = Math.abs(currentY - marqueeStart.y)
-
-  marquee.value = { x, y, w, h }
-
-  const hit = placed.value
-    .filter(
-      (item) =>
-        item.x < x + w &&
-        item.x + item.width > x &&
-        item.y < y + h &&
-        item.y + (item.height ?? CARD_HEIGHT) > y,
-    )
-    .map((item) => item.key)
-
-  selectedIds.value = additiveSelect.value
-    ? [...new Set([...baseSelection, ...hit])]
-    : hit
-}
-
-function endMarquee(): void {
-  window.removeEventListener('pointermove', moveMarquee)
-  window.removeEventListener('pointerup', endMarquee)
-  marqueeStart = null
-  marquee.value = null
-
-  // Клик по пустому месту без протяжки снимает выделение.
-  if (!additiveSelect.value && selectedIds.value.length === 0) {
-    selectedIds.value = []
-  }
-}
-
-function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    selectedIds.value = []
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', handleKeydown))
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('pointermove', moveMarquee)
-  window.removeEventListener('pointerup', endMarquee)
-})
 </script>
 
 <template>
@@ -608,14 +374,15 @@ onBeforeUnmount(() => {
         />
       </div>
     </div>
-    <!-- Шапка: подсказка стоит сразу за названием доски, зум — у правого края. -->
+
+    <!-- Шапка: подсказка сразу за названием доски, справа — действия -->
     <header
       class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
     >
       <div class="flex min-w-0 shrink-0 items-center gap-2">
         <h1 class="max-w-[220px] truncate text-base font-semibold leading-none text-ink sm:text-lg">{{ boardTitle }}</h1>
 
-        <!-- Публичная доска: кружок с буквой и полный email автора — в строке с названием -->
+        <!-- Публичная доска: кружок с буквой и полный email автора -->
         <UTooltip
           v-if="shareSlug && sharedAuthor"
           :text="`Это доска пользователя «${sharedAuthor}»`"
@@ -685,53 +452,9 @@ onBeforeUnmount(() => {
         class="rounded-lg"
         @click="openFullBoard"
       />
-
-
-      <div class="ml-auto flex shrink-0 items-center gap-1">
-        <UButton
-          type="button"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          icon="i-lucide-minus"
-          square
-          aria-label="Уменьшить"
-          @click="zoomOut"
-        />
-        <input
-          :value="percent"
-          type="range"
-          min="40"
-          max="200"
-          step="10"
-          aria-label="Масштаб доски"
-          class="w-20 cursor-pointer accent-[var(--color-accent)] sm:w-28"
-          @input="handleSlider"
-        />
-        <UButton
-          type="button"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          icon="i-lucide-plus"
-          square
-          aria-label="Увеличить"
-          @click="zoomIn"
-        />
-        <UButton
-          type="button"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          :label="`${percent}%`"
-          class="tabular-nums"
-          title="Сбросить масштаб"
-          @click="reset"
-        />
-      </div>
     </header>
 
-    <div class="relative min-h-0 flex-1 overflow-auto bg-app">
+    <div class="relative min-h-0 flex-1 bg-app">
       <!-- Нет ни одной открытой доски (вкладки закрыты) -->
       <EmptyState
         v-if="!fullView && !shareSlug && tabs.length === 0"
@@ -757,87 +480,16 @@ onBeforeUnmount(() => {
         class="mx-auto max-w-md"
       />
 
-      <!--
-        Холст фиксированного логического размера: при увеличении зума
-        появляется прокрутка, а не «сплющивание» карточек.
-      -->
-      <div
-        v-else
-        ref="canvasEl"
-        class="relative origin-top-left transition-transform duration-150"
-        :style="{
-          width: `${CANVAS_WIDTH}px`,
-          height: `${CANVAS_HEIGHT}px`,
-          transform: `scale(${scale})`,
-        }"
-        @pointerdown.self="startMarquee"
-      >
-        <!--
-          Связи «карточка → файлы»: выводятся из данных (`notes.item_id`),
-          поэтому отдельного графа нет. SVG лежит под узлами и не ловит клики.
-          Позиции пересчитываются при перетаскивании (через `tick`).
-        -->
-        <svg
-          class="pointer-events-none absolute inset-0 z-0"
-          :width="CANVAS_WIDTH"
-          :height="CANVAS_HEIGHT"
-          aria-hidden="true"
-        >
-          <path
-            v-for="edge in edges"
-            :key="edge.key"
-            :d="edge.d"
-            fill="none"
-            stroke="var(--color-line)"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
-
-        <div
-          v-if="marquee"
-          class="pointer-events-none absolute z-10 border border-accent bg-accent/10"
-          :style="{
-            left: `${marquee.x}px`,
-            top: `${marquee.y}px`,
-            width: `${marquee.w}px`,
-            height: `${marquee.h}px`,
-          }"
+      <!-- Бесконечный холст на Vue Flow (только на клиенте: данные и drag) -->
+      <ClientOnly v-else>
+        <BoardFlow
+          :nodes="placed"
+          :links="links"
+          :readonly="Boolean(shareSlug)"
+          @move="handleFlowMove"
+          @select="handleFlowSelect"
         />
-
-        <!-- Карточки -->
-        <template v-for="item in placed" :key="`${item.kind}-${item.key}`">
-          <DraggableCardWrapper
-            v-if="item.kind === 'card'"
-            :ref="(component) => setNodeRef(item.key, component)"
-            :card="item.card"
-            :start-x="item.x"
-            :start-y="item.y"
-            :width="item.width"
-            :selected="selectedIds.includes(item.key)"
-            @pick="toggleCard"
-            @drag-start="handleDragStart"
-            @drag="handleDrag"
-            @drag-end="handleDragEnd"
-          />
-
-          <!-- Файлы (заметки): фиксированный блок со скроллом внутри -->
-          <DraggableFileNode
-            v-else
-            :ref="(component) => setNodeRef(item.key, component)"
-            :note="item.note"
-            :start-x="item.x"
-            :start-y="item.y"
-            :width="item.width"
-            :height="item.height"
-            :selected="selectedIds.includes(item.key)"
-            @pick="toggleCard"
-            @drag-start="handleDragStart"
-            @drag="handleDrag"
-            @drag-end="handleDragEnd"
-          />
-        </template>
-      </div>
+      </ClientOnly>
     </div>
 
     <!-- Кнопка суммаризации выделенных (в публичной доске не нужна) -->
@@ -845,7 +497,7 @@ onBeforeUnmount(() => {
       v-if="!shareSlug && selectedIds.length > 0"
       class="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center"
     >
-      <!-- Без входа кнопка недоступна: показываем подсказку со входом -->
+      <!-- Без доступа к ИИ кнопка заперта: подсказка «свой ключ или премиум» -->
       <AiFeaturePopover v-if="!canUseAi" feature="Суммировать ИИ">
         <UButton
           type="button"
