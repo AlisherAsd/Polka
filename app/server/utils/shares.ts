@@ -44,6 +44,8 @@ export interface PublicCollection {
   folderId: string | null
   /** Доска подборки. */
   boardId: string | null
+  /** Кто поделился: имя из email (часть до `@`), если удалось найти. */
+  author: string | null
   createdAt: string
 }
 
@@ -197,6 +199,19 @@ async function boardContent(
   return { notes, cards, nodes }
 }
 
+/** Имя автора для публичной страницы: часть email до `@`. */
+async function authorOf(db: Database, userId: string): Promise<string | null> {
+  const row = await db.first<{ email: string }>('SELECT email FROM users WHERE id = ?', userId)
+
+  if (!row?.email) {
+    return null
+  }
+
+  const name = row.email.split('@')[0]?.trim()
+
+  return name && name.length > 0 ? name : null
+}
+
 /** Собирает публичное содержимое подборки. `null` — ссылки нет. */
 export async function readShare(event: Parameters<typeof getDatabase>[0], slug: string): Promise<PublicCollection | null> {
   const db = getDatabase(event)
@@ -234,6 +249,7 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
       folderId: board.folder_id,
       boardId: board.id,
       createdAt: share.created_at,
+      author: await authorOf(db, share.user_id),
     }
   }
 
@@ -268,6 +284,7 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
         folderId: folder.id,
         boardId: board.id,
         createdAt: share.created_at,
+        author: await authorOf(db, share.user_id),
       }
     }
 
@@ -307,6 +324,7 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
       folderId: folder.id,
       boardId: null,
       createdAt: share.created_at,
+      author: await authorOf(db, share.user_id),
     }
   }
 
@@ -326,5 +344,6 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
     folderId: null,
     boardId: null,
     createdAt: share.created_at,
+    author: await authorOf(db, share.user_id),
   }
 }

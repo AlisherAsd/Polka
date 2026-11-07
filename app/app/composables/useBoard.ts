@@ -39,6 +39,8 @@ export type PlacedNode = PlacedCardNode | PlacedFileNode
 /** Данные публичной доски: чужие карточки и заметки, которых нет в сторах. */
 interface SharedBoardData {
   title: string
+  /** Имя автора (часть email до `@`) для публичной доски. */
+  author: string | null
   cards: Card[]
   notes: Note[]
 }
@@ -46,6 +48,7 @@ interface SharedBoardData {
 /** Ответ `GET /api/public/:slug` — только то, что нужно для отрисовки. */
 interface PublicCollection {
   title: string
+  author?: string | null
   cards: Card[]
   notes: Note[]
   nodes: {
@@ -104,6 +107,7 @@ export function useBoard() {
   const loading = readonly(state.loading)
   const error = readonly(state.error)
   const sharedTitle = computed<string | null>(() => state.shared.value?.title ?? null)
+  const sharedAuthor = computed<string | null>(() => state.shared.value?.author ?? null)
   const isShared = computed<boolean>(() => state.shared.value !== null)
 
   /** Позиция узла по ключу (id карточки или заметки). */
@@ -281,6 +285,7 @@ export function useBoard() {
 
       state.shared.value = {
         title: collection.title,
+        author: typeof collection.author === 'string' ? collection.author : null,
         cards: Array.isArray(collection.cards) ? collection.cards : [],
         notes: Array.isArray(collection.notes) ? collection.notes : [],
       }
@@ -359,5 +364,18 @@ export function useBoard() {
     }).catch(() => undefined)
   }
 
-  return { nodes, placed, links, loading, error, sharedTitle, isShared, init, initShared, moveNode, positionOf }
+  return {
+    nodes,
+    placed,
+    links,
+    loading,
+    error,
+    sharedTitle,
+    sharedAuthor,
+    isShared,
+    init,
+    initShared,
+    moveNode,
+    positionOf,
+  }
 }

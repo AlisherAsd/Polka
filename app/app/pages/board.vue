@@ -15,7 +15,7 @@ import { useApiBase } from '~/api/client'
  * поделиться, а после перезагрузки контекст сохраняется.
  */
 const { cards } = useCards()
-const { placed, links, init: initBoard, initShared, sharedTitle, moveNode } = useBoard()
+const { placed, links, init: initBoard, initShared, sharedTitle, sharedAuthor, moveNode } = useBoard()
 const { notes, topFolders, rootFolder } = useFiles()
 const { tabs, activeId, restore, open, activate, close, rename, prune } = useBoardTabs()
 const route = useRoute()
@@ -569,6 +569,15 @@ onBeforeUnmount(() => {
     >
       <div class="flex min-w-0 shrink-0 items-baseline gap-2">
         <h1 class="max-w-[220px] truncate text-base font-semibold text-ink sm:text-lg">{{ boardTitle }}</h1>
+
+        <!-- Публичная доска: чья она — по имени из email автора -->
+        <span
+          v-if="shareSlug && sharedAuthor"
+          class="shrink-0 rounded-full border border-line bg-surface px-2 py-0.5 text-[11px] text-mute"
+          :title="`Доской поделился ${sharedAuthor}`"
+        >
+          автор: {{ sharedAuthor }}
+        </span>
       </div>
 
       <UButton
