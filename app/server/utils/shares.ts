@@ -19,6 +19,16 @@ export interface ShareRow {
   created_at: string
 }
 
+/** Узел доски в публичной подборке: координаты и ссылка на карточку/заметку. */
+export interface PublicNode {
+  itemId?: string
+  noteId?: string
+  x: number
+  y: number
+  width?: number
+  height?: number
+}
+
 /** Публичное представление подборки. */
 export interface PublicCollection {
   slug: string
@@ -26,8 +36,10 @@ export interface PublicCollection {
   title: string
   /** Заметки-файлы подборки. */
   notes: Note[]
-  /** Карточки, привязанные к этим заметкам (или вся доска при `kind = board`). */
+  /** Карточки: и лежащие на доске, и привязанные к заметкам. */
   cards: Card[]
+  /** Раскладка доски: без неё страница покажет список материалов. */
+  nodes: PublicNode[]
   /** Папка подборки: нужна для «Сохранить себе» (копирования). */
   folderId: string | null
   /** Доска подборки. */
@@ -90,6 +102,101 @@ export async function revokeShare(db: Database, userId: string, slug: string): P
   return changes > 0
 }
 
+interface BoardRowLike {
+  id: string
+  folder_id: string
+  user_id: string
+}
+
+interface NodeRowLike {
+  item_id: string | null
+  note_id: string | null
+  x: number
+  y: number
+  width: number | null
+  height: number | null
+}
+
+/**
+ * Содержимое доски для публичной страницы: узлы с координатами + заметки
+ * папки + карточки, которые на ней лежат.
+ *
+ * Доска — главное, что видит гость по ссылке: страница рисует её как есть.
+ * Список заметок/карточек остаётся запасным вариантом для старых ссылок.
+ */
+async function boardContent(
+  db: Database,
+  board: BoardRowLike,
+): Promise<{ notes: Note[]; cards: Card[]; nodes: PublicNode[] }> {
+  const nodeRows = await db.all<NodeRowLike>(
+    `SELECT item_id, note_id, x, y, width, height
+     FROM board_nodes WHERE board_id = ? ORDER BY created_at ASC`,
+    board.id,
+  )
+
+  const noteRows = await db.all<NoteRow>(
+    'SELECT * FROM notes WHERE folder_id = ? AND user_id = ? ORDER BY created_at DESC',
+    board.folder_id,
+    board.user_id,
+  )
+  const notes = noteRows.map(toNote)
+
+  // Карточки: те, что лежат на доске, и те, к которым привязаны заметки папки.
+  const itemIds = new Set<string>()
+
+  for (const row of nodeRows) {
+    if (row.item_id) {
+      itemIds.add(row.item_id)
+    }
+  }
+
+  for (const note of notes) {
+    if (note.itemId) {
+      itemIds.add(note.itemId)
+    }
+  }
+
+  const cards: Card[] = []
+
+  for (const itemId of itemIds) {
+    const row = await db.first<ItemRow>(
+      'SELECT * FROM items WHERE id = ? AND user_id = ?',
+      itemId,
+      board.user_id,
+    )
+
+    if (row) {
+      cards.push(toItem(row))
+    }
+  }
+
+  const nodes: PublicNode[] = []
+
+  for (const row of nodeRows) {
+    const node: PublicNode = { x: row.x, y: row.y }
+
+    if (row.item_id) {
+      node.itemId = row.item_id
+    }
+
+    if (row.note_id) {
+      node.noteId = row.note_id
+    }
+
+    if (typeof row.width === 'number') {
+      node.width = row.width
+    }
+
+    if (typeof row.height === 'number') {
+      node.height = row.height
+    }
+
+    nodes.push(node)
+  }
+
+  return { notes, cards, nodes }
+}
+
 /** Собирает публичное содержимое подборки. `null` — ссылки нет. */
 export async function readShare(event: Parameters<typeof getDatabase>[0], slug: string): Promise<PublicCollection | null> {
   const db = getDatabase(event)
@@ -99,11 +206,12 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
     return null
   }
 
-  // Публикуется именно доска → владелец и папка берутся из `shares.ref_id`.
+  // Публикуется доска → папка и владелец берутся из самой доски.
   if (share.kind === 'board' && share.ref_id) {
-    const board = await db.first<{ id: string; folder_id: string; user_id: string }>(
-      'SELECT id, folder_id, user_id FROM boards WHERE id = ?',
+    const board = await db.first<BoardRowLike>(
+      'SELECT id, folder_id, user_id FROM boards WHERE id = ? AND user_id = ?',
       share.ref_id,
+      share.user_id,
     )
 
     if (!board) {
@@ -114,30 +222,22 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
       'SELECT id, name FROM folders WHERE id = ?',
       board.folder_id,
     )
-
-    const noteRows = await db.all<NoteRow>(
-      'SELECT * FROM notes WHERE folder_id = ? AND user_id = ? ORDER BY created_at DESC',
-      board.folder_id,
-      board.user_id,
-    )
-    const itemRows = await db.all<ItemRow>(
-      'SELECT * FROM items WHERE user_id = ? ORDER BY created_at DESC LIMIT 100',
-      board.user_id,
-    )
+    const content = await boardContent(db, board)
 
     return {
       slug: share.slug,
       kind: 'board',
       title: folder?.name ?? 'Доска',
-      notes: noteRows.map(toNote),
-      cards: itemRows.map(toItem),
+      notes: content.notes,
+      cards: content.cards,
+      nodes: content.nodes,
       folderId: board.folder_id,
       boardId: board.id,
       createdAt: share.created_at,
     }
   }
 
-  // Папка: заметки этой папки у владельца + связанные с ними карточки.
+  // Папка: заметки этой папки у владельца + её доска (если уже создана).
   if (share.kind === 'folder' && share.ref_id) {
     const folder = await db.first<{ id: string; name: string }>(
       'SELECT id, name FROM folders WHERE id = ? AND user_id = ?',
@@ -145,20 +245,50 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
       share.user_id,
     )
 
-    const noteRows = await db.all<NoteRow>(
-      'SELECT * FROM notes WHERE folder_id = ? AND user_id = ? ORDER BY created_at DESC',
-      share.ref_id,
+    if (!folder) {
+      return null
+    }
+
+    const board = await db.first<BoardRowLike>(
+      'SELECT id, folder_id, user_id FROM boards WHERE folder_id = ? AND user_id = ?',
+      folder.id,
       share.user_id,
     )
 
+    if (board) {
+      const content = await boardContent(db, board)
+
+      return {
+        slug: share.slug,
+        kind: 'folder',
+        title: folder.name,
+        notes: content.notes,
+        cards: content.cards,
+        nodes: content.nodes,
+        folderId: folder.id,
+        boardId: board.id,
+        createdAt: share.created_at,
+      }
+    }
+
+    // Доски ещё нет — доска создастся при первом открытии владельцем.
+    // Пока отдаём список заметок папки и их карточек (как раньше).
+    const noteRows = await db.all<NoteRow>(
+      'SELECT * FROM notes WHERE folder_id = ? AND user_id = ? ORDER BY created_at DESC',
+      folder.id,
+      share.user_id,
+    )
     const notes = noteRows.map(toNote)
-    const itemIds = [...new Set(notes.map((note) => note.itemId).filter(Boolean))] as string[]
     const cards: Card[] = []
 
-    for (const itemId of itemIds) {
+    for (const note of notes) {
+      if (!note.itemId) {
+        continue
+      }
+
       const row = await db.first<ItemRow>(
         'SELECT * FROM items WHERE id = ? AND user_id = ?',
-        itemId,
+        note.itemId,
         share.user_id,
       )
 
@@ -170,16 +300,17 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
     return {
       slug: share.slug,
       kind: 'folder',
-      title: folder?.name ?? 'Подборка',
+      title: folder.name,
       notes,
       cards,
-      folderId: share.ref_id,
+      nodes: [],
+      folderId: folder.id,
       boardId: null,
       createdAt: share.created_at,
     }
   }
 
-  // Доска: все карточки владельца.
+  // Старые ссылки без ref_id: показываем карточки владельца списком.
   const itemRows = await db.all<ItemRow>(
     'SELECT * FROM items WHERE user_id = ? ORDER BY created_at DESC LIMIT 100',
     share.user_id,
@@ -191,6 +322,7 @@ export async function readShare(event: Parameters<typeof getDatabase>[0], slug: 
     title: 'Доска',
     notes: [],
     cards: itemRows.map(toItem),
+    nodes: [],
     folderId: null,
     boardId: null,
     createdAt: share.created_at,
