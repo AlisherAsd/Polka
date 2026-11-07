@@ -1,8 +1,7 @@
 // GET /api/public/:slug — содержимое публичной подборки без авторизации.
 //
-// Отдаёт только то, что владелец опубликовал: заметки папки и связанные
-// с ними карточки (или карточки доски). Личные данные (email, сессии,
-// ключи) сюда не попадают.
+// Отдаёт только то, что владелец опубликовал: узлы доски, заметки и карточки.
+// Личные данные (email, сессии, ключи) сюда не попадают.
 import { readShare } from '../../utils/shares'
 
 export default defineEventHandler(async (event) => {
@@ -13,8 +12,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Подборка не найдена' })
   }
 
-  // Публичные страницы можно кэшировать на CDN.
-  setHeader(event, 'cache-control', 'public, max-age=60')
+  // Никакого кеша: ссылку можно отозвать в любой момент, и доступ должен
+  // пропадать сразу — и в браузере, и на CDN (`max-age` держал ответ 60 с).
+  setHeader(event, 'cache-control', 'no-store, must-revalidate')
 
   return { collection }
 })

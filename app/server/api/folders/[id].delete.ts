@@ -35,6 +35,19 @@ export default defineEventHandler(async (event) => {
   // Заметки вынимаем из папки явно: полагаться только на FK в D1 не стоит
   // (PRAGMA foreign_keys в некоторых режимах выключен).
   await db.run('UPDATE notes SET folder_id = NULL WHERE folder_id = ?', id)
+  // Публичные ссылки на папку и её доску больше не должны работать.
+  await db.run(
+    `DELETE FROM shares
+     WHERE user_id = ?
+       AND (
+         (kind = 'folder' AND ref_id = ?)
+         OR (kind = 'board' AND ref_id IN (SELECT id FROM boards WHERE folder_id = ?))
+       )`,
+    scope.userId,
+    id,
+    id,
+  )
+
   await db.run('DELETE FROM folders WHERE id = ? AND user_id = ?', id, scope.userId)
 
   setResponseStatus(event, 204)

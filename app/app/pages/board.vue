@@ -96,8 +96,13 @@ async function toggleBoardVisibility(): Promise<void> {
 
   try {
     if (existing) {
-      // Папка могла быть опубликована и как доска, и как папка — отзываем всё.
-      await Promise.all(folderShares.value.map((share) => revokeShareRequest(apiBase, share.slug)))
+      // Список мог устареть (ссылку на папку могли создать в другой вкладке),
+      // поэтому перед отзывом перечитываем его и снимаем все ссылки папки.
+      await loadShares()
+
+      const revoke = [...folderShares.value]
+
+      await Promise.all(revoke.map((share) => revokeShareRequest(apiBase, share.slug)))
       await loadShares()
       notify.success('Доска снова приватная')
     } else {
