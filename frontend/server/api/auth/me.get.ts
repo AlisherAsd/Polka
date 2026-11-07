@@ -9,5 +9,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'Не авторизован' })
   }
 
+  console.log('[auth:me]', { userId: user.id, premium: Boolean(user.is_premium), platform: clientPlatform(event) })
+
   return { user: toPublicUser(user) }
 })
