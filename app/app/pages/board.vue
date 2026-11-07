@@ -209,6 +209,27 @@ watch(currentFolder, (folder) => {
 /** id выделенных узлов (карточек и файлов). */
 const selectedIds = ref<string[]>([])
 
+/**
+ * Режим выбора для телефона: на тач-экране нет Shift, поэтому включаем
+ * отдельную кнопку, где тапы по узлам добавляют/убирают их из выделения.
+ */
+const multiSelect = ref<boolean>(false)
+
+function toggleMultiSelect(): void {
+  multiSelect.value = !multiSelect.value
+
+  if (!multiSelect.value) {
+    selectedIds.value = []
+  }
+}
+
+/** Тап по узлу в режиме мультивыбора. */
+function handleFlowToggle(key: string): void {
+  selectedIds.value = selectedIds.value.includes(key)
+    ? selectedIds.value.filter((item) => item !== key)
+    : [...selectedIds.value, key]
+}
+
 onMounted(() => {
   // Публичная доска: свои вкладки и данные не трогаем, грузим чужую доску.
   if (shareSlug.value) {
@@ -260,6 +281,9 @@ watch(folderId, (next) => {
     return
   }
 
+  multiSelect.value = false
+  selectedIds.value = []
+
   activate(next)
 
   if (queryFolder.value !== next) {
@@ -271,6 +295,9 @@ watch(folderId, (next) => {
 
 // Переход между публичными ссылками (или выход из режима просмотра).
 watch(shareSlug, (next) => {
+  multiSelect.value = false
+  selectedIds.value = []
+
   if (next) {
     void initShared(next)
 
@@ -285,11 +312,15 @@ watch(shareSlug, (next) => {
 const isEmpty = computed<boolean>(() => placed.value.length === 0)
 
 /** Подсказка в шапке: меняется в зависимости от выделения. */
-const hint = computed<string>(() =>
-  selectedIds.value.length > 0
+const hint = computed<string>(() => {
+  if (multiSelect.value) {
+    return 'тапайте по карточкам, чтобы выбрать несколько'
+  }
+
+  return selectedIds.value.length > 0
     ? `выбрано: ${selectedIds.value.length}`
-    : 'перетаскивайте карточки · Shift + рамка — выделение',
-)
+    : 'перетаскивайте карточки · Shift + рамка — выделение'
+})
 
 /** Карточки из выделения: к ним привязывается результат саммари. */
 const selectedCards = computed<Card[]>(() =>
@@ -402,6 +433,19 @@ function handleFlowSelect(keys: string[]): void {
 
       <span class="min-w-0 truncate text-xs leading-none text-mute">{{ hint }}</span>
 
+      <!-- Телефон: включить режим выбора нескольких карточек -->
+      <UButton
+        v-if="!shareSlug"
+        type="button"
+        color="neutral"
+        :variant="multiSelect ? 'solid' : 'outline'"
+        size="xs"
+        :icon="multiSelect ? 'i-lucide-check' : 'i-lucide-list-checks'"
+        :label="multiSelect ? 'Готово' : 'Выбрать'"
+        class="rounded-lg sm:hidden"
+        @click="toggleMultiSelect"
+      />
+
       <!-- Публичная доска: открыть ту же доску без интерфейса приложения -->
       <UButton
         v-if="shareSlug && !fullView"
@@ -485,9 +529,12 @@ function handleFlowSelect(keys: string[]): void {
         <BoardFlow
           :nodes="placed"
           :links="links"
+          :selected="selectedIds"
+          :multi-select="multiSelect"
           :readonly="Boolean(shareSlug)"
           @move="handleFlowMove"
           @select="handleFlowSelect"
+          @toggle="handleFlowToggle"
         />
       </ClientOnly>
     </div>

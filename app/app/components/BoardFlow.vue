@@ -30,15 +30,24 @@ import type { Note } from '~/api/notes'
 const props = withDefaults(defineProps<{
   nodes: PlacedNode[]
   links: readonly { itemId: string; noteId: string }[]
+  /** id выделенных узлов (используется в мобильном режиме выбора). */
+  selected?: readonly string[]
+  /**
+   * Режим выбора для тач-экранов: обычный клик/тап добавляет или убирает узел
+   * из выделения. На десктопе не нужен — там Shift/рамка.
+   */
+  multiSelect?: boolean
   /** Публичная доска: смотреть можно, двигать нельзя. */
   readonly?: boolean
-}>(), { readonly: false })
+}>(), { readonly: false, selected: () => [], multiSelect: false })
 
 const emit = defineEmits<{
   /** Узел перетащили: новые координаты в логических px. */
   move: [key: string, x: number, y: number]
   /** Изменилось выделение (id карточек/заметок). */
   select: [keys: string[]]
+  /** В режиме мультивыбора: тап по узлу добавляет/убирает его. */
+  toggle: [key: string]
 }>()
 
 const flow = useVueFlow()
@@ -65,6 +74,8 @@ const flowNodes = computed<Node<CardNodeData | FileNodeData>[]>(() =>
       height: `${node.height ?? CARD_HEIGHT}px`,
     },
     draggable: !props.readonly,
+    // В режиме выбора рисуем выделение сами: библиотека его не трогает.
+    ...(props.multiSelect ? { selected: props.selected.includes(node.key) } : {}),
   })),
 )
 
@@ -106,6 +117,13 @@ flow.onNodesChange((changes) => {
 
 flow.onPaneClick(() => emit('select', []))
 
+// Тач-режим: тап по узлу не заменяет выделение, а переключает его.
+flow.onNodeClick(({ node }) => {
+  if (props.multiSelect) {
+    emit('toggle', node.id)
+  }
+})
+
 // Новая папка/публичная доска — вписываем содержимое в экран.
 watch(
   () => props.nodes.map((node) => node.key).join('|'),
@@ -129,7 +147,7 @@ watch(
     :edges="flowEdges"
     :nodes-draggable="!readonly"
     :nodes-connectable="false"
-    :elements-selectable="true"
+    :elements-selectable="!multiSelect"
     :zoom-on-scroll="true"
     :zoom-on-pinch="true"
     :pan-on-drag="true"
