@@ -39,7 +39,7 @@ export type PlacedNode = PlacedCardNode | PlacedFileNode
 /** Данные публичной доски: чужие карточки и заметки, которых нет в сторах. */
 interface SharedBoardData {
   title: string
-  /** Имя автора (часть email до `@`) для публичной доски. */
+  /** Email автора для публичной доски. */
   author: string | null
   cards: Card[]
   notes: Note[]

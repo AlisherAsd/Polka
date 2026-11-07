@@ -35,6 +35,13 @@ const boardTitle = computed<string>(() =>
     ? (sharedTitle.value ?? 'Доска')
     : (currentFolder.value?.name ?? 'Доска'),
 )
+/** Первая буква email — для кружка-аватара автора публичной доски. */
+const authorInitial = computed<string>(() => {
+  const email = sharedAuthor.value?.trim() ?? ''
+
+  return email.length > 0 ? email[0]!.toUpperCase() : '?'
+})
+
 const folderMissing = computed<boolean>(
   () => !shareSlug.value
     && topFolders.value.length > 0
@@ -567,17 +574,25 @@ onBeforeUnmount(() => {
     <header
       class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
     >
-      <div class="flex min-w-0 shrink-0 items-baseline gap-2">
+      <div class="flex min-w-0 shrink-0 flex-col gap-0.5">
         <h1 class="max-w-[220px] truncate text-base font-semibold text-ink sm:text-lg">{{ boardTitle }}</h1>
 
-        <!-- Публичная доска: чья она — по имени из email автора -->
-        <span
+        <!-- Публичная доска: кружок с буквой и полный email автора -->
+        <UTooltip
           v-if="shareSlug && sharedAuthor"
-          class="shrink-0 rounded-full border border-line bg-surface px-2 py-0.5 text-[11px] text-mute"
-          :title="`Доской поделился ${sharedAuthor}`"
+          :text="`Это доска пользователя «${sharedAuthor}»`"
+          :delay-duration="150"
         >
-          автор: {{ sharedAuthor }}
-        </span>
+          <div class="flex min-w-0 items-center gap-1.5">
+            <span
+              class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold uppercase leading-none text-white"
+              aria-hidden="true"
+            >
+              {{ authorInitial }}
+            </span>
+            <span class="max-w-[240px] truncate text-xs text-mute">{{ sharedAuthor }}</span>
+          </div>
+        </UTooltip>
       </div>
 
       <UButton
