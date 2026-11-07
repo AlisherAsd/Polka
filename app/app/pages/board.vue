@@ -26,6 +26,8 @@ const createShare = createShareRequest
 /** Активная доска: из адреса (`?folder=`) или последняя открытая вкладка. */
 const folderId = computed<string>(() => String(route.query.folder ?? activeId.value ?? ''))
 const queryFolder = computed<string>(() => String(route.query.folder ?? ''))
+/** Публичная доска: `/board?share=<slug>` — открывается без входа, только чтение. */
+const shareSlug = computed<string>(() => String(route.query.share ?? ''))
 const currentFolder = computed(() => topFolders.value.find((folder) => folder.id === folderId.value) ?? null)
 const boardTitle = computed<string>(() => currentFolder.value?.name ?? 'Доска')
 const folderMissing = computed<boolean>(
@@ -111,6 +113,11 @@ const selectedIds = ref<string[]>([])
  * а после переходов (или сохранений с другого устройства) они могли измениться.
  */
 onMounted(() => {
+  // Публичная доска: свои вкладки и данные не трогаем — рисует `SharedBoard`.
+  if (shareSlug.value) {
+    return
+  }
+
   restore()
 
   const fromQuery = queryFolder.value
@@ -128,7 +135,7 @@ onMounted(() => {
 
 // Папки догрузились: чистим вкладки удалённых и подтягиваем названия.
 watch(topFolders, (folders) => {
-  if (folders.length === 0) {
+  if (shareSlug.value || folders.length === 0) {
     return
   }
 
@@ -150,7 +157,7 @@ watch(topFolders, (folders) => {
 
 // Переключение вкладки — адрес и загрузка узлов этой доски.
 watch(folderId, (next) => {
-  if (!next) {
+  if (shareSlug.value || !next) {
     return
   }
 
@@ -420,7 +427,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="flex min-h-0 w-full flex-1 flex-col">
+  <!-- Публичная ссылка: та же страница доски, но только для чтения -->
+  <SharedBoard v-if="shareSlug" :slug="shareSlug" />
+
+  <section v-else class="flex min-h-0 w-full flex-1 flex-col">
     <!-- Табы открытых досок: один таб = доска одной папки -->
     <div
       v-if="tabs.length > 0"
