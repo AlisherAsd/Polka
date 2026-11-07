@@ -76,8 +76,10 @@ export default defineEventHandler(async (event) => {
     }
 
     for (const key of keys) {
+      // `OR IGNORE` — на случай двух одновременных запросов доски: узел должен
+      // появиться один раз (уникальность — по `board_id` + id карточки/заметки).
       await db.run(
-        `INSERT INTO board_nodes (id, board_id, item_id, note_id, x, y, width, height, created_at, updated_at)
+        `INSERT OR IGNORE INTO board_nodes (id, board_id, item_id, note_id, x, y, width, height, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         crypto.randomUUID(),
         board.id,

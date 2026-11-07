@@ -46,6 +46,8 @@ interface BoardState {
 
 let sharedState: BoardState | null = null
 let loadPromise: Promise<void> | null = null
+/** Номер последнего запроса: ответы устаревших запросов не применяем. */
+let requestSeq = 0
 
 function ensureState(): BoardState {
   if (!sharedState) {
@@ -153,37 +155,65 @@ export function useBoard() {
       return
     }
 
-    // Без folderId (гость или пустая страница) — просто показываем доступное.
+    // Без folderId (гость или пустая страница) — доска пустая.
     if (!folderId) {
+      requestSeq++
       state.nodes.value = []
       state.folderId.value = null
+      state.loading.value = false
+      state.error.value = null
 
       return
     }
 
-    // Другая папка — перечитываем доску, даже если она уже была загружена.
+    // Эта доска уже грузится — отдаём тот же промис.
     if (loadPromise && state.folderId.value === folderId) {
       return loadPromise
     }
 
-    state.folderId.value = folderId
+    // Меняем папку — сразу убираем узлы прежней доски. Иначе при медленном
+    // или упавшем запросе на экране оставались файлы предыдущей папки.
+    const switched = state.folderId.value !== folderId
 
+    if (switched) {
+      state.nodes.value = []
+    }
+
+    state.folderId.value = folderId
     state.loading.value = true
     state.error.value = null
 
-    loadPromise = fetchBoard(apiBase, folderId)
+    const seq = ++requestSeq
+
+    const request = fetchBoard(apiBase, folderId)
       .then((board) => {
+        // Пока шёл запрос, открыли другую доску — этот ответ уже неактуален.
+        if (seq !== requestSeq) {
+          return
+        }
+
         state.nodes.value = board.nodes
       })
       .catch(() => {
+        if (seq !== requestSeq) {
+          return
+        }
+
+        state.nodes.value = []
         state.error.value = 'Не удалось загрузить доску'
       })
       .finally(() => {
+        if (seq !== requestSeq) {
+          return
+        }
+
         state.loading.value = false
         loadPromise = null
       })
 
-    return loadPromise
+    loadPromise = request
+
+    return request
   }
 
   /** Запоминает позицию локально и сохраняет её в D1 (ошибки не показываем). */
