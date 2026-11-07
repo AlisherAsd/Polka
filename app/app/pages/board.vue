@@ -431,8 +431,6 @@ function handleFlowSelect(keys: string[]): void {
         </UTooltip>
       </div>
 
-      <span class="min-w-0 truncate text-xs leading-none text-mute">{{ hint }}</span>
-
       <!-- Телефон: включить режим выбора нескольких карточек -->
       <UButton
         v-if="!shareSlug"
@@ -442,7 +440,7 @@ function handleFlowSelect(keys: string[]): void {
         size="xs"
         :icon="multiSelect ? 'i-lucide-check' : 'i-lucide-list-checks'"
         :label="multiSelect ? 'Готово' : 'Выбрать'"
-        class="rounded-lg"
+        class="shrink-0 rounded-lg"
         @click="toggleMultiSelect"
       />
 
@@ -455,7 +453,7 @@ function handleFlowSelect(keys: string[]): void {
         size="xs"
         icon="i-lucide-maximize-2"
         label="Открыть полностью"
-        class="rounded-lg"
+        class="shrink-0 rounded-lg"
         @click="openFullBoard"
       />
 
@@ -468,7 +466,7 @@ function handleFlowSelect(keys: string[]): void {
         size="xs"
         icon="i-lucide-house"
         label="На главную"
-        class="rounded-lg"
+        class="shrink-0 rounded-lg"
       />
 
       <UButton
@@ -479,7 +477,7 @@ function handleFlowSelect(keys: string[]): void {
         size="xs"
         :icon="boardShare ? 'i-lucide-lock' : 'i-lucide-share-2'"
         :label="boardShare ? 'Сделать приватной' : 'Сделать публичной'"
-        class="rounded-lg"
+        class="shrink-0 rounded-lg"
         :loading="sharing"
         @click="toggleBoardVisibility"
       />
@@ -493,9 +491,11 @@ function handleFlowSelect(keys: string[]): void {
         size="xs"
         icon="i-lucide-maximize-2"
         label="Открыть полностью"
-        class="rounded-lg"
+        class="shrink-0 rounded-lg"
         @click="openFullBoard"
       />
+      <!-- Подсказка занимает остаток строки и обрезается: кнопки слева не прыгают -->
+      <span class="min-w-0 flex-1 truncate text-xs leading-none text-mute">{{ hint }}</span>
     </header>
 
     <div class="relative min-h-0 flex-1 bg-app">
