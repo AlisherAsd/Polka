@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Верхняя панель (область `header` в grid-template-areas).
- * Поиск, «Ask chat» и уведомления — заглушки: функциональности нет, только вёрстка.
+ * Поиск по сайту (`AppSearch`), «AI чат» и кнопка руководства.
  * Все контролы — компоненты Nuxt UI (`UInput`, `UButton`), иконки — i-lucide-*.
  */
 
@@ -14,9 +14,6 @@ const { openModal: openAuthModal } = useAuthModal()
 
 /** Ключ введён — кнопка ключа подсвечивается. */
 const hasAiKey = computed<boolean>(() => aiKey.value.length > 0)
-
-/** Заглушка поиска: поле управляется локально, но никуда не отправляет запрос. */
-const searchQuery = ref<string>('')
 
 function handleAsk(): void {
   navigateTo('/chat')
@@ -40,10 +37,8 @@ function handleAsk(): void {
         :class="['shrink-0', sidePanelOpen ? 'rotate-180' : 'rotate-0', 'transition-transform']"
         @click="toggleSidePanel" />
 
-      <UInput v-model="searchQuery" type="search" size="md" color="neutral" icon="i-lucide-search" placeholder="Поиск"
-        aria-label="Поиск" autocomplete="off" class="w-full max-w-[450px] shrink-0" :ui="{
-          base: 'rounded-xl ring-0 ring-transparent outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0',
-        }" />
+      <!-- Поиск по сайту: страницы, руководство и действия -->
+      <AppSearch />
 
       <AiFeaturePopover v-if="!canUseAi" feature="AI чат">
         <UButton color="neutral" variant="outline" size="md" icon="i-lucide-message-circle-question" label="AI чат"
