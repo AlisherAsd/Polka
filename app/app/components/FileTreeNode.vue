@@ -22,6 +22,7 @@ const { closeSidePanel } = useSidePanel()
 const { isAuth } = useAuth()
 const { openModal: openAuthModal } = useAuthModal()
 const { removeFolder, removeNote } = useFiles()
+const confirm = useConfirm()
 
 /** Служебную `ai-voult` удалить нельзя. */
 const isServiceFolder = computed<boolean>(() => props.node.id === 'ai-voult')
@@ -40,7 +41,15 @@ async function handleDelete(): Promise<void> {
     ? ' Файлы внутри останутся и переедут в корень.'
     : ''
 
-  if (!window.confirm(`Удалить ${label} «${props.node.name}»?${hint}`)) {
+  // `window.confirm` в Tauri не работает (диалог не показывается) — своя модалка.
+  const confirmed = await confirm.ask({
+    title: `Удалить ${label} «${props.node.name}»?`,
+    description: hint.trim(),
+    confirmLabel: 'Удалить',
+    danger: true,
+  })
+
+  if (!confirmed) {
     return
   }
 

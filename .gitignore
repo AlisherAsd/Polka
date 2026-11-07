@@ -32,16 +32,12 @@ logs
 REFERENCE.png
 ref/
 
-# Backend env
-backend/.env
-
-# Локальное состояние wrangler (мультирекв по воркспейсам)
-.wrangler/
-frontend/.wrangler/
+# Локальные секреты приложения (Nitro читает их в dev)
+app/.env
 
 # Локальное состояние и конфиг wrangler/miniflare
 .wrangler/
-frontend/.wrangler/
+app/.wrangler/
 
 # Rust / Tauri
 apps/desktop/src-tauri/target/

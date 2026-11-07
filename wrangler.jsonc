@@ -3,12 +3,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "polka",
-  "main": "frontend/.output/server/index.mjs",
+  "main": "app/.output/server/index.mjs",
   "compatibility_date": "2025-07-15",
   // Nitro требует nodejs_als (AsyncLocalStorage); nodejs_compatv2 включает его и остальные node-API.
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "frontend/.output/public",
+    "directory": "app/.output/public",
     "binding": "ASSETS",
   },
   "observability": {
@@ -28,7 +28,7 @@
       "binding": "DB",
       "database_name": "polka-db",
       "database_id": "0be1f813-4297-452b-b297-1f220dcc45c6",
-      "migrations_dir": "frontend/migrations",
+      "migrations_dir": "app/migrations",
     },
   ],
 }

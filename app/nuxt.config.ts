@@ -43,7 +43,7 @@ export default defineNuxtConfig({
         : (env.NITRO_PRESET ?? "cloudflare_module"),
     cloudflare: {
       dev: {
-        // Конфиг лежит в корне монорепы, а не рядом с frontend/.
+        // Конфиг лежит в корне монорепы, а не рядом с app/.
         configPath: "../wrangler.jsonc",
         // Общее состояние с `wrangler d1 ... --local`: миграции и данные одни.
         persistDir: "../.wrangler/state/v3",

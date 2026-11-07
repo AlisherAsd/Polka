@@ -16,8 +16,19 @@ const { toggleMenu } = useMobileMenu()
     <!-- Слева: лого (то же, что в сайдбаре) — с версией в поповере -->
     <AppLogo />
 
-    <!-- Справа: файлы + меню -->
+    <!-- Справа: файлы, руководство, меню -->
     <div class="flex shrink-0 items-center gap-1">
+      <UButton
+        to="/manual"
+        color="neutral"
+        variant="ghost"
+        size="md"
+        square
+        icon="i-lucide-circle-question-mark"
+        aria-label="Руководство по работе с сервисом"
+        title="Руководство"
+        class="rounded-lg"
+      />
       <AuthRequiredPopover v-if="!isAuth" feature="Доступ к папкам">
         <UButton
           type="button"

@@ -92,5 +92,7 @@ onMounted(() => {
     <AppPremiumModal />
 
     <AppProfileModal />
+
+    <AppConfirmModal />
   </div>
 </template>

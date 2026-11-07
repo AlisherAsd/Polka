@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "identifier": "app.polka.desktop",
   "build": {
-    "frontendDist": "../../../frontend/.output/public",
+    "frontendDist": "../../../app/.output/public",
     "beforeDevCommand": "npm --prefix ../.. run dev",
     "beforeBuildCommand": "npm --prefix ../.. run desktop:web",
     "devUrl": "http://localhost:3000"

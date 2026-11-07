@@ -28,7 +28,7 @@ install: ## Установить зависимости (один lock в кор
 dev: ## Dev-сервер: http://localhost:3000 (API и D1 через cloudflare-dev)
 	npm run dev
 
-build: ## Собрать воркер → frontend/.output
+build: ## Собрать воркер → app/.output
 	npm run build
 
 check: ## Проверка типов
@@ -86,4 +86,4 @@ ship: check build ## Проверки + сборка + деплой на Cloudfl
 	$(WRANGLER) deploy
 
 clean: ## Удалить артефакты сборки и локальное состояние D1
-	rm -rf frontend/.output frontend/.nuxt .wrangler/state $(TMP_JSON)
+	rm -rf app/.output app/.nuxt .wrangler/state $(TMP_JSON)

@@ -5,11 +5,6 @@
  * Все контролы — компоненты Nuxt UI (`UInput`, `UButton`), иконки — i-lucide-*.
  */
 
-const emit = defineEmits<{
-  /** Иконка уведомлений — заглушка. */
-  notifications: []
-}>()
-
 const { openModal } = useAddModal()
 const { open: sidePanelOpen, toggleSidePanel } = useSidePanel()
 const { isAuth } = useAuth()
@@ -25,10 +20,6 @@ const searchQuery = ref<string>('')
 
 function handleAsk(): void {
   navigateTo('/chat')
-}
-
-function handleNotifications(): void {
-  emit('notifications')
 }
 </script>
 
@@ -67,8 +58,17 @@ function handleNotifications(): void {
     <div v-if="isAuth" class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
       <AppPremiumButton />
 
-      <UButton color="neutral" variant="ghost" size="md" icon="i-lucide-bell" square aria-label="Уведомления"
-        title="Уведомления" @click="handleNotifications" />
+      <!-- Руководство вместо уведомлений: открывает страницу с инструкцией -->
+      <UButton
+        to="/manual"
+        color="neutral"
+        variant="ghost"
+        size="md"
+        icon="i-lucide-circle-question-mark"
+        square
+        aria-label="Руководство по работе с сервисом"
+        title="Руководство"
+      />
 
       <!-- Ключ OpenRouter: круглая кнопка на акцентном фоне, открывает модалку ключа -->
       <UButton

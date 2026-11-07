@@ -4,8 +4,8 @@
 Плюс нативное приложение для macOS на Tauri 2, которое использует тот же API.
 
 ```
-frontend/              Nuxt 4 + @nuxt/ui: UI и API (server/api, Nitro), D1-биндинги
-frontend/migrations/   миграции D1 (единый источник правды)
+app/                   Nuxt 4 + @nuxt/ui: UI (`app/`) и сервер (`app/server/`), D1-биндинги
+app/migrations/        миграции D1 (единый источник правды)
 wrangler.jsonc         конфиг воркера: Nuxt SSR + /api + биндинг D1
 apps/desktop/          нативное приложение для macOS (Rust + Tauri, WKWebView)
 Makefile               частые команды (`make help`)
@@ -38,7 +38,7 @@ npm run dev        # или: make dev
 - Открывается http://localhost:3000 — UI и API в одном процессе.
 - Nitro включает cloudflare-dev эмуляцию: `getPlatformProxy()` из wrangler
   поднимает биндинги (D1) и кладёт их в `event.context.cloudflare`, поэтому
-  `frontend/server/api/**` работает локально без отдельного сервера.
+  `app/server/api/**` работает локально без отдельного сервера.
 - Локальная база — `.wrangler/state/v3/d1`. Та же, что у `wrangler dev`.
 
 Первичная подготовка базы (один раз):
@@ -54,7 +54,7 @@ curl http://localhost:3000/api/items     # {"items":[]}
 curl http://localhost:3000/api/folders   # {"folders":[{"id":"ai-voult",...}]}
 ```
 
-Ключ модели для `/api/ask` и `/api/summarize` — в `frontend/.env`:
+Ключ модели для `/api/ask` и `/api/summarize` — в `app/.env`:
 
 ```
 OPENROUTER_KEY=sk-or-v1-...
@@ -83,7 +83,7 @@ npm run deploy         # или: make ship       — сборка и выкла�
 
 Что важно:
 
-1. **Миграции.** Если в коммите появились файлы `frontend/migrations/*.sql`,
+1. **Миграции.** Если в коммите появились файлы `app/migrations/*.sql`,
    их надо применить к боевой D1 **до** или сразу после деплоя:
    ```bash
    npm run d1:migrate:remote      # или: make migrate-remote
@@ -130,7 +130,7 @@ npm run desktop:build
 Внутри две команды:
 
 1. `npm run desktop:web` — `NUXT_SPA=1 NUXT_PUBLIC_API_BASE=<адрес API> nuxt generate`
-   → статика в `frontend/.output/public` (SSR отключается **только** для этой
+   → статика в `app/.output/public` (SSR отключается **только** для этой
    сборки, веб-деплой не затрагивается);
 2. `tauri build` в `apps/desktop` — Rust-сборка и бандл `.app`.
 
@@ -239,7 +239,7 @@ interface Card {
 }
 ```
 
-Заметки и папки — в [`frontend/API-notes.md`](frontend/API-notes.md).
+Заметки и папки — в [`app/API-notes.md`](app/API-notes.md).
 
 ---
 
@@ -248,7 +248,7 @@ interface Card {
 | Команда                     | Что делает                                         |
 | --------------------------- | -------------------------------------------------- |
 | `npm run dev`               | dev-сервер :3000 (UI + API + локальная D1)          |
-| `npm run build`             | сборка воркера → `frontend/.output`                 |
+| `npm run build`             | сборка воркера → `app/.output`                 |
 | `npm run deploy`            | `wrangler deploy`                                   |
 | `npm run typecheck`         | `nuxt typecheck`                                    |
 | `npm run d1:migrate`        | миграции в локальную D1                             |
