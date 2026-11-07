@@ -39,7 +39,7 @@ onMounted(() => {
 
     <AppMobileMenu />
 
-    <main class="layout-area-main flex min-w-0 overflow-x-hidden">
+    <main class="layout-area-main flex min-h-0 min-w-0 overflow-hidden">
       <!--
         Вторая панель: на десктопе выезжает шириной, на мобильном —
         фиксированной шторкой справа на весь экран.
@@ -74,7 +74,8 @@ onMounted(() => {
         <SecondSidebar class="h-full w-full" />
       </div>
 
-      <div class="min-w-0 flex-1 overflow-x-hidden">
+      <!-- Скроллится только содержимое страницы; панель «Файлы» и рейка стоят -->
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         <slot />
       </div>
     </main>
