@@ -578,7 +578,7 @@ onBeforeUnmount(() => {
       class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
     >
       <div class="flex min-w-0 shrink-0 items-center gap-2">
-        <h1 class="max-w-[220px] truncate text-base font-semibold text-ink sm:text-lg">{{ boardTitle }}</h1>
+        <h1 class="max-w-[220px] truncate text-base font-semibold leading-none text-ink sm:text-lg">{{ boardTitle }}</h1>
 
         <!-- Публичная доска: кружок с буквой и полный email автора — в строке с названием -->
         <UTooltip
@@ -593,12 +593,12 @@ onBeforeUnmount(() => {
             >
               {{ authorInitial }}
             </span>
-            <span class="max-w-[240px] truncate text-xs text-mute">{{ sharedAuthor }}</span>
+            <span class="max-w-[240px] truncate text-xs leading-none text-mute">{{ sharedAuthor }}</span>
           </div>
         </UTooltip>
       </div>
 
-      <span class="min-w-0 truncate text-xs text-mute">{{ hint }}</span>
+      <span class="min-w-0 truncate text-xs leading-none text-mute">{{ hint }}</span>
 
       <!-- Публичная доска: открыть ту же доску без интерфейса приложения -->
       <UButton
