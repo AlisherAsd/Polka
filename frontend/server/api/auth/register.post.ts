@@ -9,12 +9,20 @@ import {
   type UserRow,
 } from '../../utils/auth'
 import { createSession, setSessionCookie } from '../../utils/session'
-import { optionalText } from '../../utils/items'
+import { clientPlatform } from '../../utils/client-info'
 
 export default defineEventHandler(async (event) => {
-  const body = (await readBody<{ email?: string; password?: string }>(event)) ?? {}
-  const email = (optionalText(body.email) ?? '').toLowerCase()
+  const body = (await readBody<{ email?: unknown; password?: unknown }>(event)) ?? {}
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
   const password = typeof body.password === 'string' ? body.password : ''
+
+  if (typeof body.email !== 'string' || typeof body.password !== 'string') {
+    console.warn('[auth:register] некорректные типы полей', {
+      emailType: typeof body.email,
+      passwordType: typeof body.password,
+      platform: clientPlatform(event),
+    })
+  }
 
   if (!isValidEmail(email)) {
     throw createError({ statusCode: 400, message: 'Некорректный email' })

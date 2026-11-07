@@ -6,6 +6,9 @@ export const MODEL = 'openrouter/free'
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 
+/** Модель иногда «думает» долго; дольше — обрываем, чтобы не висеть у клиента. */
+const REQUEST_TIMEOUT_MS = 120_000
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -79,14 +82,28 @@ export async function chat(
 ): Promise<string> {
   const { key } = resolveKey(event, options.isPremium === true)
 
-  const res = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model: MODEL, messages }),
-  })
+  let res: Response
+
+  try {
+    res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: MODEL, messages }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+  } catch (error) {
+    const timeout = (error as { name?: string })?.name === 'TimeoutError'
+
+    throw createError({
+      statusCode: timeout ? 504 : 502,
+      message: timeout
+        ? 'Модель не ответила за 2 минуты, попробуйте ещё раз'
+        : `Не удалось связаться с OpenRouter: ${String((error as Error)?.message ?? error).slice(0, 200)}`,
+    })
+  }
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '')

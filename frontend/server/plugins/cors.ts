@@ -10,7 +10,9 @@ const DEFAULT_ORIGINS = [
   'http://localhost:3000',
   'http://localhost',
   'https://localhost',
-  // Оболочки нативного приложения.
+  // Оболочки нативного приложения. macOS/Tauri отдаёт `tauri://localhost`,
+  // Windows и Android — `http(s)://tauri.localhost`, Capacitor — свой scheme.
+  // Никогда не отвечаем `*`: с credentials это запрещено браузером.
   'capacitor://localhost',
   'tauri://localhost',
   'http://tauri.localhost',
@@ -55,7 +57,11 @@ export default defineNitroPlugin((nitroApp) => {
     }
 
     setHeader(event, 'access-control-allow-methods', 'GET,POST,PATCH,DELETE,OPTIONS')
-    setHeader(event, 'access-control-allow-headers', 'content-type,authorization')
+    // Клиент присылает ещё `x-openrouter-key` (личный ключ ИИ) — разрешаем всё,
+    // что он перечислит в preflight, иначе браузер/WebView режет запрос.
+    const requested = getHeader(event, 'access-control-request-headers') || 'content-type,authorization,x-openrouter-key'
+
+    setHeader(event, 'access-control-allow-headers', requested)
     setHeader(event, 'access-control-max-age', 86400)
 
     // Preflight отвечаем сразу, не доходя до роутов.

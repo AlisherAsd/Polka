@@ -3,22 +3,45 @@
 import { getDatabase } from '../../utils/db'
 import { toPublicUser, verifyPassword, type UserRow } from '../../utils/auth'
 import { createSession, setSessionCookie } from '../../utils/session'
-import { optionalText } from '../../utils/items'
+import { clientPlatform } from '../../utils/client-info'
 
 export default defineEventHandler(async (event) => {
-  const body = (await readBody<{ email?: string; password?: string }>(event)) ?? {}
-  const email = (optionalText(body.email) ?? '').toLowerCase()
-  const password = typeof body.password === 'string' ? body.password : ''
+  const body = (await readBody<{
+    email?: unknown
+    password?: unknown
+  }>(event)) ?? {}
 
+  const rawEmail = body.email
+  const rawPassword = body.password
+  const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+  const password = typeof rawPassword === 'string' ? rawPassword : ''
+
+  // Точные причины — в `wrangler tail`: без этого нативные ошибки невидимы.
   if (email.length === 0 || password.length === 0) {
+    console.warn('[auth:login] пустые поля', {
+      emailType: typeof rawEmail,
+      passwordType: typeof rawPassword,
+      passwordLength: password.length,
+      platform: clientPlatform(event),
+    })
+
     throw createError({ statusCode: 400, message: 'Укажите email и пароль' })
   }
 
   const db = getDatabase(event)
   const user = await db.first<UserRow>('SELECT * FROM users WHERE email = ?', email)
 
-  // Один текст ошибки на оба случая — не подсказываем, существует ли аккаунт.
-  if (!user || !(await verifyPassword(password, user))) {
+  if (!user) {
+    console.warn('[auth:login] пользователь не найден', { email, platform: clientPlatform(event) })
+
+    throw createError({ statusCode: 401, message: 'Неверный email или пароль' })
+  }
+
+  const ok = await verifyPassword(password, user)
+
+  if (!ok) {
+    console.warn('[auth:login] неверный пароль', { email, platform: clientPlatform(event) })
+
     throw createError({ statusCode: 401, message: 'Неверный email или пароль' })
   }
 

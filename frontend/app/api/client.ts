@@ -9,6 +9,13 @@
  * и «сайт на другом origin» попадут в нужный хост.
  */
 
+/**
+ * Куда обращаться, если ни runtime config, ни `window.__NUXT__` не дали адрес.
+ * Держим прод-адрес воркера: без него в статической сборке запросы уходят
+ * на `file://`/`tauri://` и падают без внятной ошибки.
+ */
+const FALLBACK_API_BASE = 'https://polka.alishersharipovtol.workers.dev'
+
 /** Ответ `$fetch`-ошибки с телом `{ message }`. */
 function messageOf(error: unknown, fallback: string): string {
   const message = (error as { data?: { message?: unknown } })?.data?.message
@@ -16,11 +23,33 @@ function messageOf(error: unknown, fallback: string): string {
   return typeof message === 'string' && message.length > 0 ? message : fallback
 }
 
-/** Читает базу API из Nuxt runtime config (вызывать внутри setup/composable). */
+/**
+ * База API.
+ *
+ * Основной источник — `runtimeConfig.public.apiBase` (в статической сборке это
+ * `window.__NUXT__.config.public`). Дополнительно читаем `window.__NUXT__`
+ * напрямую: composable может вызываться вне setup-контекста (например, из
+ * плагина или из промиса), и тогда `useRuntimeConfig()` отдаёт пустые значения —
+ * в нативном приложении это уводило запросы на `tauri://localhost/api/...`.
+ */
 export function useApiBase(): string {
-  const config = useRuntimeConfig()
+  const runtime = String(useRuntimeConfig().public?.apiBase ?? '')
 
-  return String(config.public.apiBase ?? '').replace(/\/+$/, '')
+  if (runtime) {
+    return runtime.replace(/\/+$/, '')
+  }
+
+  if (typeof window !== 'undefined') {
+    const globalConfig = (window as unknown as { __NUXT__?: { config?: { public?: { apiBase?: unknown } } } })
+      .__NUXT__?.config?.public?.apiBase
+
+    if (typeof globalConfig === 'string' && globalConfig.length > 0) {
+      return globalConfig.replace(/\/+$/, '')
+    }
+  }
+
+  // Последний рубеж для натива: адрес прод-API из wrangler.jsonc.
+  return FALLBACK_API_BASE
 }
 
 /** Собирает абсолютный URL: пустая база — тот же origin. */
@@ -93,6 +122,7 @@ export async function apiFetch<T>(
   if (aiKey) {
     headers['x-openrouter-key'] = aiKey
   }
+
 
   return (await rawFetch(apiUrl(base, path), { ...options, headers })) as T
 }

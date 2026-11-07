@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { useApiBase } from '~/api/client'
+
 /**
  * Модалка входа и регистрации: реальные запросы к `/api/auth/*`.
  * Успех — тост и закрытие окна; ошибка сервера показывается текстом и тостом.
  */
 const { open, closeModal } = useAuthModal()
 const { signInRequest } = useAuth()
+const apiBase = useApiBase()
 const notify = useNotify()
 
 const isLogin = ref<boolean>(true)
@@ -39,8 +42,19 @@ async function submit(): Promise<void> {
     password.value = ''
     closeModal()
   } catch (error) {
-    failure.value = notify.messageOf(error, 'Не удалось войти')
-    notify.fail(error, 'Не удалось войти')
+    // Сообщение сервера (`data.message`) важнее общего текста: в нём причина
+    // (занятый email, короткий пароль, неверный пароль). Для сетевых сбоев
+    // показываем адрес, по которому шёл запрос, — так видно, если API не тот.
+    const serverMessage = (error as { data?: { message?: unknown } })?.data?.message
+    const fallback = isLogin.value
+      ? `Не удалось войти (${apiBase})`
+      : `Не удалось зарегистрироваться (${apiBase})`
+
+    failure.value = typeof serverMessage === 'string' && serverMessage.length > 0
+      ? serverMessage
+      : fallback
+
+    notify.error(failure.value, isLogin.value ? 'Не удалось войти' : 'Регистрация не удалась')
   } finally {
     pending.value = false
   }
@@ -73,7 +87,9 @@ async function submit(): Promise<void> {
           :ui="{ base: 'rounded-xl' }"
         />
 
-        <p v-if="!isLogin" class="text-xs text-mute">Минимум 8 символов.</p>
+        <p class="text-xs text-mute">
+          {{ isLogin ? 'Пароль — как при регистрации.' : 'Пароль — минимум 8 символов.' }}
+        </p>
 
         <p v-if="failure" class="text-xs text-[#b3261e]" role="alert">{{ failure }}</p>
 
