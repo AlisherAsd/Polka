@@ -204,13 +204,14 @@ function handleClick(): void {
       >
         <button
           type="button"
-          class="shrink-0 rounded-md p-0.5 text-mute opacity-0 transition-opacity hover:bg-app hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
+          class="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-mute opacity-0 transition-opacity hover:bg-app hover:text-ink group-hover:opacity-100 focus-visible:opacity-100"
           :aria-label="actionsLabel"
           :title="actionsLabel"
           @click.stop
           @pointerdown.stop
         >
-          <UIcon name="i-lucide-ellipsis-vertical" class="size-3.5" />
+          <!-- `block` + flex-центрирование: иначе SVG сидит на baseline и «⋯» уезжает вниз -->
+          <UIcon name="i-lucide-ellipsis-vertical" class="block size-3.5" />
         </button>
 
         <template #content>
