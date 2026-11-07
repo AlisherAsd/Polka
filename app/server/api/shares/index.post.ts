@@ -65,7 +65,7 @@ export default defineEventHandler(async (event) => {
       slug: share.slug,
       kind: share.kind,
       refId: share.ref_id,
-      // Ссылка открывает страницу доски (`SharedBoard`), а не отдельную подборку.
+      // Ссылка открывает ту же страницу доски (`/board?share=...`), а не отдельную подборку.
       url: `/board?share=${share.slug}`,
     },
   }

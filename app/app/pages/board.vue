@@ -14,7 +14,7 @@ import { useApiBase } from '~/api/client'
  * поделиться, а после перезагрузки контекст сохраняется.
  */
 const { cards } = useCards()
-const { placed, links, init: initBoard, moveNode } = useBoard()
+const { placed, links, init: initBoard, initShared, sharedTitle, moveNode } = useBoard()
 const { notes, topFolders, rootFolder } = useFiles()
 const { tabs, activeId, restore, open, activate, close, rename, prune } = useBoardTabs()
 const route = useRoute()
@@ -29,9 +29,16 @@ const queryFolder = computed<string>(() => String(route.query.folder ?? ''))
 /** Публичная доска: `/board?share=<slug>` — открывается без входа, только чтение. */
 const shareSlug = computed<string>(() => String(route.query.share ?? ''))
 const currentFolder = computed(() => topFolders.value.find((folder) => folder.id === folderId.value) ?? null)
-const boardTitle = computed<string>(() => currentFolder.value?.name ?? 'Доска')
+const boardTitle = computed<string>(() =>
+  shareSlug.value
+    ? (sharedTitle.value ?? 'Доска')
+    : (currentFolder.value?.name ?? 'Доска'),
+)
 const folderMissing = computed<boolean>(
-  () => topFolders.value.length > 0 && folderId.value.length > 0 && currentFolder.value === null,
+  () => !shareSlug.value
+    && topFolders.value.length > 0
+    && folderId.value.length > 0
+    && currentFolder.value === null,
 )
 
 /** Публикация доски активной папки. */
@@ -113,8 +120,10 @@ const selectedIds = ref<string[]>([])
  * а после переходов (или сохранений с другого устройства) они могли измениться.
  */
 onMounted(() => {
-  // Публичная доска: свои вкладки и данные не трогаем — рисует `SharedBoard`.
+  // Публичная доска: свои вкладки и данные не трогаем, грузим чужую доску.
   if (shareSlug.value) {
+    void initShared(shareSlug.value)
+
     return
   }
 
@@ -168,6 +177,19 @@ watch(folderId, (next) => {
   }
 
   void initBoard(next)
+})
+
+// Переход между публичными ссылками (или выход из режима просмотра).
+watch(shareSlug, (next) => {
+  if (next) {
+    void initShared(next)
+
+    return
+  }
+
+  if (folderId.value) {
+    void initBoard(folderId.value)
+  }
 })
 
 const isEmpty = computed<boolean>(() => placed.value.length === 0)
@@ -427,13 +449,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- Публичная ссылка: та же страница доски, но только для чтения -->
-  <SharedBoard v-if="shareSlug" :slug="shareSlug" />
-
-  <section v-else class="flex min-h-0 w-full flex-1 flex-col">
+  <section class="flex min-h-0 w-full flex-1 flex-col">
     <!-- Табы открытых досок: один таб = доска одной папки -->
     <div
-      v-if="tabs.length > 0"
+      v-if="!shareSlug && tabs.length > 0"
       class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-line bg-surface px-2 py-1.5 sm:px-4"
       role="tablist"
       aria-label="Открытые доски"
@@ -481,7 +500,7 @@ onBeforeUnmount(() => {
       </div>
 
       <UButton
-        v-if="isAuth && currentFolder"
+        v-if="!shareSlug && isAuth && currentFolder"
         type="button"
         color="neutral"
         variant="outline"
@@ -544,7 +563,7 @@ onBeforeUnmount(() => {
     <div class="relative min-h-0 flex-1 overflow-auto bg-app">
       <!-- Нет ни одной открытой доски (вкладки закрыты) -->
       <EmptyState
-        v-if="tabs.length === 0"
+        v-if="!shareSlug && tabs.length === 0"
         title="Откройте доску"
         description="Нажмите на папку в панели «Файлы» — её доска откроется здесь во вкладке."
         class="mx-auto max-w-md"
@@ -650,9 +669,9 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- Кнопка суммаризации выделенных -->
+    <!-- Кнопка суммаризации выделенных (в публичной доске не нужна) -->
     <div
-      v-if="selectedIds.length > 0"
+      v-if="!shareSlug && selectedIds.length > 0"
       class="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center"
     >
       <!-- Без входа кнопка недоступна: показываем подсказку со входом -->

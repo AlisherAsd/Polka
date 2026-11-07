@@ -1,7 +1,7 @@
 import { computed, readonly, ref } from 'vue'
 import type { Ref } from 'vue'
 import { fetchBoard, saveBoardNode } from '~/api/board'
-import { useApiBase } from '~/api/client'
+import { apiFetch, useApiBase } from '~/api/client'
 import type { BoardNode } from '~/api/board'
 import type { Note } from '~/api/notes'
 import type { Card } from '~/types/card'
@@ -36,10 +36,34 @@ export interface PlacedFileNode {
 
 export type PlacedNode = PlacedCardNode | PlacedFileNode
 
+/** Данные публичной доски: чужие карточки и заметки, которых нет в сторах. */
+interface SharedBoardData {
+  title: string
+  cards: Card[]
+  notes: Note[]
+}
+
+/** Ответ `GET /api/public/:slug` — только то, что нужно для отрисовки. */
+interface PublicCollection {
+  title: string
+  cards: Card[]
+  notes: Note[]
+  nodes: {
+    itemId?: string
+    noteId?: string
+    x: number
+    y: number
+    width?: number
+    height?: number
+  }[]
+}
+
 interface BoardState {
   /** Папка, чья доска сейчас загружена. */
   folderId: Ref<string | null>
   nodes: Ref<BoardNode[]>
+  /** Непусто — на экране публичная доска (только чтение по сети). */
+  shared: Ref<SharedBoardData | null>
   loading: Ref<boolean>
   error: Ref<string | null>
 }
@@ -54,6 +78,7 @@ function ensureState(): BoardState {
     sharedState = {
       folderId: ref<string | null>(null),
       nodes: ref<BoardNode[]>([]),
+      shared: ref<SharedBoardData | null>(null),
       loading: ref(false),
       error: ref<string | null>(null),
     }
@@ -65,6 +90,9 @@ function ensureState(): BoardState {
 /**
  * Доска: раскладывает карточки и файлы (заметки) по координатам из D1.
  * Связь «карточка ↔ файл» берётся из `notes.item_id`, отдельного графа нет.
+ *
+ * Один и тот же стейт обслуживает и свою доску (`init`), и публичную
+ * (`initShared`): компонент доски, зум и перетаскивание общие.
  */
 export function useBoard() {
   const state = ensureState()
@@ -75,13 +103,14 @@ export function useBoard() {
   const nodes = readonly(state.nodes)
   const loading = readonly(state.loading)
   const error = readonly(state.error)
+  const sharedTitle = computed<string | null>(() => state.shared.value?.title ?? null)
+  const isShared = computed<boolean>(() => state.shared.value !== null)
 
   /** Позиция узла по ключу (id карточки или заметки). */
   function positionOf(key: string): BoardNode | undefined {
     return state.nodes.value.find((node) => node.itemId === key || node.noteId === key)
   }
 
-  /** Узлы для рендера: только то, что лежит на этой доске. */
   /**
    * Содержимое доски — только узлы этой доски (`board_nodes`).
    *
@@ -90,8 +119,11 @@ export function useBoard() {
    * с доской убрана: на доске лежит только то, что пользователь положил сам.
    */
   const placed = computed<PlacedNode[]>(() => {
-    const byId = new Map(cards.value.map((card) => [card.id, card]))
-    const noteById = new Map(notes.value.map((note) => [note.id, note]))
+    // Публичная доска приносит свои карточки/заметки: в сторах зрителя их нет.
+    const cardList = state.shared.value?.cards ?? cards.value
+    const noteList = state.shared.value?.notes ?? notes.value
+    const byId = new Map(cardList.map((card) => [card.id, card]))
+    const noteById = new Map(noteList.map((note) => [note.id, note]))
     const result: PlacedNode[] = []
 
     for (const node of state.nodes.value) {
@@ -140,11 +172,13 @@ export function useBoard() {
   })
 
   /** Связи «карточка → её файлы» по `notes.item_id`. */
-  const links = computed(() =>
-    notes.value
+  const links = computed(() => {
+    const noteList = state.shared.value?.notes ?? notes.value
+
+    return noteList
       .filter((note) => Boolean(note.itemId))
-      .map((note) => ({ itemId: note.itemId as string, noteId: note.id })),
-  )
+      .map((note) => ({ itemId: note.itemId as string, noteId: note.id }))
+  })
 
   /**
    * Загрузка позиций с сервера. Вызывать можно многократно: одновременно идёт
@@ -154,6 +188,9 @@ export function useBoard() {
     if (!import.meta.client) {
       return
     }
+
+    // Своя доска: публичные данные больше не нужны.
+    state.shared.value = null
 
     // Без folderId (гость или пустая страница) — доска пустая.
     if (!folderId) {
@@ -216,6 +253,77 @@ export function useBoard() {
     return request
   }
 
+  /** Публичная доска: те же узлы, но из `/api/public/:slug` (без входа). */
+  async function initShared(slug: string): Promise<void> {
+    if (!import.meta.client || !slug) {
+      return
+    }
+
+    const seq = ++requestSeq
+
+    state.folderId.value = null
+    state.nodes.value = []
+    state.shared.value = null
+    state.loading.value = true
+    state.error.value = null
+
+    try {
+      const res = await apiFetch<{ collection: PublicCollection }>(
+        apiBase,
+        `/api/public/${encodeURIComponent(slug)}`,
+      )
+
+      if (seq !== requestSeq) {
+        return
+      }
+
+      const collection = res.collection
+
+      state.shared.value = {
+        title: collection.title,
+        cards: Array.isArray(collection.cards) ? collection.cards : [],
+        notes: Array.isArray(collection.notes) ? collection.notes : [],
+      }
+      state.nodes.value = (collection.nodes ?? []).map((node, index) => {
+        const mapped: BoardNode = {
+          id: node.itemId ?? node.noteId ?? `shared-${index}`,
+          x: node.x,
+          y: node.y,
+          updatedAt: '',
+        }
+
+        if (node.itemId) {
+          mapped.itemId = node.itemId
+        }
+
+        if (node.noteId) {
+          mapped.noteId = node.noteId
+        }
+
+        if (typeof node.width === 'number') {
+          mapped.width = node.width
+        }
+
+        if (typeof node.height === 'number') {
+          mapped.height = node.height
+        }
+
+        return mapped
+      })
+    } catch {
+      if (seq !== requestSeq) {
+        return
+      }
+
+      state.nodes.value = []
+      state.error.value = 'Не удалось загрузить доску'
+    } finally {
+      if (seq === requestSeq) {
+        state.loading.value = false
+      }
+    }
+  }
+
   /** Запоминает позицию локально и сохраняет её в D1 (ошибки не показываем). */
   function moveNode(key: string, x: number, y: number): void {
     const existing = positionOf(key)
@@ -235,6 +343,11 @@ export function useBoard() {
         },
       ]
 
+    // Публичная доска — только просмотр: двигаем локально, никуда не пишем.
+    if (state.shared.value) {
+      return
+    }
+
     const node = state.nodes.value.find((item) => item.id === existing?.id || item.id === key)
 
     void saveBoardNode(apiBase, state.folderId.value ?? '', key, {
@@ -246,5 +359,5 @@ export function useBoard() {
     }).catch(() => undefined)
   }
 
-  return { nodes, placed, links, loading, error, init, moveNode, positionOf }
+  return { nodes, placed, links, loading, error, sharedTitle, isShared, init, initShared, moveNode, positionOf }
 }
