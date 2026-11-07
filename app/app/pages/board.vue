@@ -93,6 +93,36 @@ async function loadShares(): Promise<void> {
 
 // Список ссылок грузим, когда станет известен вход (watch ниже, после isAuth).
 
+/** Ссылка на полноэкранный вид текущей доски. */
+function fullBoardHref(): string {
+  const query = shareSlug.value
+    ? { share: shareSlug.value, full: '1' }
+    : { folder: folderId.value, full: '1' }
+
+  return router.resolve({ path: '/board', query }).href
+}
+
+/**
+ * «Открыть полностью»: в браузере — новая вкладка, в нативном приложении —
+ * тот же экран (Tauri без плагина не открывает новые окна, `target=_blank`
+ * там просто ничего не делает).
+ */
+async function openFullBoard(): Promise<void> {
+  const href = fullBoardHref()
+
+  if (isNativeApp()) {
+    await navigateTo(href)
+
+    return
+  }
+
+  const opened = window.open(href, '_blank', 'noopener,noreferrer')
+
+  if (!opened) {
+    await navigateTo(href)
+  }
+}
+
 /** Кнопка с двумя состояниями: опубликовать доску или снова сделать приватной. */
 async function toggleBoardVisibility(): Promise<void> {
   const folder = currentFolder.value
@@ -117,11 +147,16 @@ async function toggleBoardVisibility(): Promise<void> {
       notify.success('Доска снова приватная')
     } else {
       const share = await createShare(apiBase, { kind: 'board', refId: folder.boardId ?? undefined })
-      const url = `${window.location.origin}${share.url}`
+      // В нативе origin — `tauri://localhost`, делимся публичным адресом API.
+      const url = publicShareUrl(apiBase, share.url)
 
       await loadShares()
-      await navigator.clipboard.writeText(url)
-      notify.success('Ссылка скопирована', 'Доска опубликована')
+
+      if (await copyText(url)) {
+        notify.success('Ссылка скопирована', 'Доска опубликована')
+      } else {
+        notify.error(url, 'Скопируйте ссылку вручную')
+      }
     }
   } catch (error) {
     notify.fail(error, existing ? 'Не удалось сделать приватной' : 'Не удалось опубликовать доску')
@@ -603,15 +638,14 @@ onBeforeUnmount(() => {
       <!-- Публичная доска: открыть ту же доску без интерфейса приложения -->
       <UButton
         v-if="shareSlug && !fullView"
-        :to="`/board?share=${shareSlug}&full=1`"
-        target="_blank"
-        rel="noopener noreferrer"
+        type="button"
         color="neutral"
         variant="outline"
         size="xs"
         icon="i-lucide-maximize-2"
         label="Открыть полностью"
         class="rounded-lg"
+        @click="openFullBoard"
       />
 
       <!-- Полноэкранный режим: вернуться на главную -->
@@ -642,15 +676,14 @@ onBeforeUnmount(() => {
       <!-- Своя доска без интерфейса — в новой вкладке, рядом с публикацией -->
       <UButton
         v-if="!fullView && !shareSlug && isAuth && currentFolder"
-        :to="`/board?folder=${folderId}&full=1`"
-        target="_blank"
-        rel="noopener noreferrer"
+        type="button"
         color="neutral"
         variant="outline"
         size="xs"
         icon="i-lucide-maximize-2"
         label="Открыть полностью"
         class="rounded-lg"
+        @click="openFullBoard"
       />
 
 

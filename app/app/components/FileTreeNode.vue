@@ -69,10 +69,14 @@ async function handleShare(): Promise<void> {
 
   try {
     const share = await createShare(apiBase, { kind: 'folder', refId: props.node.id })
-    const url = `${window.location.origin}${apiUrl('', share.url)}`
+    // В нативе origin — `tauri://localhost`, поэтому берём публичный адрес API.
+    const url = publicShareUrl(apiBase, apiUrl('', share.url))
 
-    await navigator.clipboard.writeText(url)
-    notify.success('Ссылка скопирована', 'Подборка опубликована')
+    if (await copyText(url)) {
+      notify.success('Ссылка скопирована', 'Подборка опубликована')
+    } else {
+      notify.error(url, 'Скопируйте ссылку вручную')
+    }
   } catch (error) {
     notify.fail(error, 'Не удалось опубликовать')
   }
