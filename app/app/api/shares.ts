@@ -15,6 +15,17 @@ interface ShareResponse {
   share: Share
 }
 
+interface SharesResponse {
+  shares: Share[]
+}
+
+/** Все публичные ссылки пользователя (для кнопки «Сделать приватной»). */
+export async function fetchShares(base: ApiBase): Promise<Share[]> {
+  const res = await apiFetch<SharesResponse>(base, '/api/shares')
+
+  return Array.isArray(res.shares) ? res.shares : []
+}
+
 /** Публикует папку (или доску) и возвращает ссылку. Повторный вызов — та же ссылка. */
 export async function createShare(
   base: ApiBase,

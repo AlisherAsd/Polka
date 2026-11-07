@@ -2,7 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Card } from '~/types/card'
 import type { Note } from '~/api/notes'
-import { createShare as createShareRequest } from '~/api/shares'
+import { createShare as createShareRequest, fetchShares as fetchSharesRequest, revokeShare as revokeShareRequest } from '~/api/shares'
+import type { Share } from '~/api/shares'
 import { useApiBase } from '~/api/client'
 
 /**
@@ -41,11 +42,51 @@ const folderMissing = computed<boolean>(
     && currentFolder.value === null,
 )
 
-/** Публикация доски активной папки. */
+/** Публичные ссылки пользователя: по ним видно, опубликована ли доска. */
+const shares = ref<Share[]>([])
 const sharing = ref<boolean>(false)
 
-async function publishBoard(): Promise<void> {
+/**
+ * Публичные ссылки активной папки: доска публикуется как доска или как папка
+ * (страница `/board?share=` у них одна и та же), поэтому считаем обе.
+ */
+const folderShares = computed<Share[]>(() => {
   const folder = currentFolder.value
+
+  if (!folder) {
+    return []
+  }
+
+  return shares.value.filter((share) =>
+    (share.kind === 'board' && share.refId === folder.boardId)
+    || (share.kind === 'folder' && share.refId === folder.id),
+  )
+})
+
+/** Первая ссылка папки (если публикаций нет — `null`). */
+const boardShare = computed<Share | null>(() => folderShares.value[0] ?? null)
+
+/** Перечитывает ссылки; при ошибке считаем, что публикаций нет. */
+async function loadShares(): Promise<void> {
+  if (!isAuth.value) {
+    shares.value = []
+
+    return
+  }
+
+  try {
+    shares.value = await fetchSharesRequest(apiBase)
+  } catch {
+    shares.value = []
+  }
+}
+
+// Список ссылок грузим, когда станет известен вход (watch ниже, после isAuth).
+
+/** Кнопка с двумя состояниями: опубликовать доску или снова сделать приватной. */
+async function toggleBoardVisibility(): Promise<void> {
+  const folder = currentFolder.value
+  const existing = boardShare.value
 
   if (!folder || sharing.value) {
     return
@@ -54,13 +95,21 @@ async function publishBoard(): Promise<void> {
   sharing.value = true
 
   try {
-    const share = await createShare(apiBase, { kind: 'board', refId: folder.boardId ?? undefined })
-    const url = `${window.location.origin}${share.url}`
+    if (existing) {
+      // Папка могла быть опубликована и как доска, и как папка — отзываем всё.
+      await Promise.all(folderShares.value.map((share) => revokeShareRequest(apiBase, share.slug)))
+      await loadShares()
+      notify.success('Доска снова приватная')
+    } else {
+      const share = await createShare(apiBase, { kind: 'board', refId: folder.boardId ?? undefined })
+      const url = `${window.location.origin}${share.url}`
 
-    await navigator.clipboard.writeText(url)
-    notify.success('Ссылка скопирована', 'Доска опубликована')
+      await loadShares()
+      await navigator.clipboard.writeText(url)
+      notify.success('Ссылка скопирована', 'Доска опубликована')
+    }
   } catch (error) {
-    notify.fail(error, 'Не удалось опубликовать доску')
+    notify.fail(error, existing ? 'Не удалось сделать приватной' : 'Не удалось опубликовать доску')
   } finally {
     sharing.value = false
   }
@@ -90,6 +139,24 @@ const { canUseAi } = useAiKey()
 const { openModal: openKeyModal } = useAiKeyModal()
 const { openModal: openAuthModal } = useAuthModal()
 const { isAuth } = useAuth()
+
+// Вход подтягивается после старта — список ссылок грузим, когда он появился.
+watch(isAuth, (authorized) => {
+  if (authorized) {
+    void loadShares()
+
+    return
+  }
+
+  shares.value = []
+}, { immediate: true })
+
+// Переключились на другую папку — обновляем и её состояние публикации.
+watch(currentFolder, (folder) => {
+  if (folder && !shareSlug.value) {
+    void loadShares()
+  }
+})
 
 const CARD_WIDTH = 200
 const CARD_HEIGHT = 220
@@ -505,11 +572,11 @@ onBeforeUnmount(() => {
         color="neutral"
         variant="outline"
         size="xs"
-        icon="i-lucide-share-2"
-        label="Сделать публичной"
+        :icon="boardShare ? 'i-lucide-lock' : 'i-lucide-share-2'"
+        :label="boardShare ? 'Сделать приватной' : 'Сделать публичной'"
         class="rounded-lg"
         :loading="sharing"
-        @click="publishBoard"
+        @click="toggleBoardVisibility"
       />
 
       <span class="order-last w-full min-w-0 truncate text-xs text-mute sm:order-none sm:w-auto">
