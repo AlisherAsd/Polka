@@ -102,6 +102,55 @@ const FAQ: readonly Question[] = [
     answer: 'По умолчанию — нет. Доступ к папке или доске появляется только по ссылке, которую вы сами опубликуете, и её можно отключить в любой момент.',
   },
 ]
+
+/**
+ * Появление блоков при прокрутке: класс `.has-reveal` добавляем только
+ * на клиенте, чтобы без JS контент оставался видимым.
+ */
+let revealObserver: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
+
+  if (
+    nodes.length === 0
+    || !('IntersectionObserver' in window)
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    return
+  }
+
+  document.documentElement.classList.add('has-reveal')
+
+  revealObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) {
+        continue
+      }
+
+      const node = entry.target as HTMLElement
+
+      node.classList.add('is-visible')
+      revealObserver?.unobserve(node)
+
+      // После появления убираем задержку, чтобы hover-увеличение было сразу.
+      window.setTimeout(() => {
+        node.style.transitionDelay = '0ms'
+      }, 900)
+    }
+  }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' })
+
+  nodes.forEach((node, index) => {
+    node.style.transitionDelay = `${(index % 3) * 70}ms`
+    revealObserver?.observe(node)
+  })
+})
+
+onBeforeUnmount(() => revealObserver?.disconnect())
 </script>
 
 <template>
@@ -149,9 +198,9 @@ const FAQ: readonly Question[] = [
 
     <!-- Как это работает -->
     <section class="relative z-10 mx-auto w-full max-w-5xl px-6 py-4">
-      <div class="flex max-w-2xl flex-col gap-2">
+      <div data-reveal class="flex max-w-2xl flex-col gap-2">
         <p class="text-xs font-semibold uppercase tracking-wide text-mute">Как это работает</p>
-        <h2 class="text-2xl font-semibold leading-tight text-ink sm:text-3xl">
+        <h2 class="text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">
           Три шага от ссылки до порядка
         </h2>
         <p class="text-sm leading-relaxed text-dim">
@@ -164,7 +213,7 @@ const FAQ: readonly Question[] = [
         <li
           v-for="step in STEPS"
           :key="step.index"
-          class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5"
+          data-reveal class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]"
         >
           <span class="text-xs font-semibold text-primary">{{ step.index }}</span>
           <h3 class="text-base font-semibold text-ink">{{ step.title }}</h3>
@@ -177,9 +226,9 @@ const FAQ: readonly Question[] = [
 
     <!-- Преимущества -->
     <section class="relative z-10 mx-auto w-full max-w-5xl px-6 py-4">
-      <div class="flex max-w-2xl flex-col gap-2">
+      <div data-reveal class="flex max-w-2xl flex-col gap-2">
         <p class="text-xs font-semibold uppercase tracking-wide text-mute">Почему это удобно</p>
-        <h2 class="text-2xl font-semibold leading-tight text-ink sm:text-3xl">
+        <h2 class="text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">
           Меньше вкладок — больше толку
         </h2>
         <p class="text-sm leading-relaxed text-dim">
@@ -192,7 +241,7 @@ const FAQ: readonly Question[] = [
         <article
           v-for="item in BENEFITS"
           :key="item.title"
-          class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5"
+          data-reveal class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]"
         >
           <h3 class="text-base font-semibold text-ink">{{ item.title }}</h3>
           <p class="text-sm leading-relaxed text-dim">{{ item.text }}</p>
@@ -204,9 +253,9 @@ const FAQ: readonly Question[] = [
 
     <!-- Для кого -->
     <section class="relative z-10 mx-auto w-full max-w-5xl px-6 py-4">
-      <div class="flex max-w-2xl flex-col gap-2">
+      <div data-reveal class="flex max-w-2xl flex-col gap-2">
         <p class="text-xs font-semibold uppercase tracking-wide text-mute">Для кого</p>
-        <h2 class="text-2xl font-semibold leading-tight text-ink sm:text-3xl">
+        <h2 class="text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">
           Тем, кто много читает и мало запоминает
         </h2>
         <p class="text-sm leading-relaxed text-dim">
@@ -218,7 +267,7 @@ const FAQ: readonly Question[] = [
         <article
           v-for="item in AUDIENCE"
           :key="item.title"
-          class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5"
+          data-reveal class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]"
         >
           <h3 class="text-base font-semibold text-ink">{{ item.title }}</h3>
           <p class="text-sm leading-relaxed text-dim">{{ item.text }}</p>
@@ -233,7 +282,7 @@ const FAQ: readonly Question[] = [
       <div class="grid grid-cols-1 items-center gap-8 lg:grid-cols-[1fr_1.15fr]">
         <div class="flex flex-col gap-3">
           <p class="text-xs font-semibold uppercase tracking-wide text-mute">Где открывается</p>
-          <h2 class="text-2xl font-semibold leading-tight text-ink sm:text-3xl">
+          <h2 class="text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">
             Работает в вебе и на macOS
           </h2>
           <p class="text-sm leading-relaxed text-dim">
@@ -254,7 +303,7 @@ const FAQ: readonly Question[] = [
         </div>
 
         <div class="flex flex-col gap-4">
-          <figure class="overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)]">
+          <figure data-reveal class="overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:scale-[1.01]">
             <img
               src="/mac.png"
               alt="Полка в приложении для macOS: доска с карточками"
@@ -268,7 +317,7 @@ const FAQ: readonly Question[] = [
             </figcaption>
           </figure>
 
-          <figure class="w-full overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)]">
+          <figure data-reveal class="w-full overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:scale-[1.01]">
             <img
               src="/iphone.png"
               alt="Полка в браузере на телефоне"
@@ -289,9 +338,9 @@ const FAQ: readonly Question[] = [
 
     <!-- Вопросы -->
     <section class="relative z-10 mx-auto w-full max-w-3xl px-6 py-4">
-      <div class="flex flex-col gap-2">
+      <div data-reveal class="flex flex-col gap-2">
         <p class="text-xs font-semibold uppercase tracking-wide text-mute">Частые вопросы</p>
-        <h2 class="text-2xl font-semibold leading-tight text-ink sm:text-3xl">
+        <h2 class="text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">
           Коротко о главном
         </h2>
       </div>
@@ -300,7 +349,7 @@ const FAQ: readonly Question[] = [
         <details
           v-for="item in FAQ"
           :key="item.question"
-          class="group rounded-2xl border border-line bg-surface px-4 py-3"
+          data-reveal class="group rounded-2xl border border-line bg-surface px-4 py-3"
         >
           <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-ink">
             {{ item.question }}
@@ -317,8 +366,8 @@ const FAQ: readonly Question[] = [
     <hr class="mx-auto my-12 max-w-5xl border-line" />
 
     <!-- Финальный призыв -->
-    <section class="relative z-10 mx-auto w-full max-w-3xl px-6 pb-24 pt-4 text-center">
-      <h2 class="text-2xl font-semibold leading-tight text-ink sm:text-3xl">
+    <section data-reveal class="relative z-10 mx-auto w-full max-w-3xl px-6 pb-24 pt-4 text-center">
+      <h2 class="text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">
         Начните с одной ссылки
       </h2>
       <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-dim">
