@@ -146,12 +146,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1,
-h2,
-h3,
-p,
-figure {
-  margin: 0;
+/* В слое base: иначе это правило перебивало margin-утилиты Tailwind
+   (`mx-auto`, `mt-*`) на p/h1/h2 — финальный текст на лендинге уезжал влево. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  p,
+  figure {
+    margin: 0;
+  }
 }
 
 img {
