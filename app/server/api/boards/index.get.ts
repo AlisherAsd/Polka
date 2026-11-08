@@ -9,6 +9,7 @@ import { currentUserId } from '../../utils/scope'
 interface FolderRow {
   id: string
   name: string
+  preview: string | null
   board_id: string | null
   created_at: string
 }
@@ -30,6 +31,7 @@ interface BoardRow {
 interface HomeFolder {
   id: string
   name: string
+  preview: string | null
   boardId: string | null
   files: number
   cards: number
@@ -39,6 +41,7 @@ interface HomeFolder {
 interface HomePublicBoard {
   slug: string
   title: string
+  preview: string | null
   author: string
   files: number
   kind: string
@@ -78,7 +81,7 @@ export default defineEventHandler(async (event) => {
 
   if (userId) {
     const rows = await db.all<FolderRow>(
-      `SELECT f.id, f.name, b.id AS board_id, f.created_at
+      `SELECT f.id, f.name, f.preview, b.id AS board_id, f.created_at
        FROM folders f
        LEFT JOIN boards b ON b.folder_id = f.id
        WHERE f.user_id = ? AND f.is_root = 0 AND f.parent_id IS NULL
@@ -100,6 +103,7 @@ export default defineEventHandler(async (event) => {
       folders.push({
         id: row.id,
         name: row.name,
+        preview: row.preview,
         boardId: row.board_id,
         files: await filesInFolder(db, row.id),
         cards: row.board_id ? await cardsOnBoard(db, row.board_id) : 0,
@@ -125,7 +129,7 @@ export default defineEventHandler(async (event) => {
       continue
     }
 
-    let folder: { id: string; name: string } | null = null
+    let folder: { id: string; name: string; preview: string | null } | null = null
     let board: BoardRow | null = null
 
     if (share.kind === 'board') {
@@ -136,15 +140,15 @@ export default defineEventHandler(async (event) => {
       )
 
       if (board) {
-        folder = await db.first<{ id: string; name: string }>(
-          'SELECT id, name FROM folders WHERE id = ? AND user_id = ?',
+        folder = await db.first<{ id: string; name: string; preview: string | null }>(
+          'SELECT id, name, preview FROM folders WHERE id = ? AND user_id = ?',
           board.folder_id,
           share.user_id,
         )
       }
     } else if (share.kind === 'folder') {
-      folder = await db.first<{ id: string; name: string }>(
-        'SELECT id, name FROM folders WHERE id = ? AND user_id = ?',
+      folder = await db.first<{ id: string; name: string; preview: string | null }>(
+        'SELECT id, name, preview FROM folders WHERE id = ? AND user_id = ?',
         share.ref_id,
         share.user_id,
       )
@@ -159,6 +163,7 @@ export default defineEventHandler(async (event) => {
     publicBoards.push({
       slug: share.slug,
       title: folder.name,
+      preview: folder.preview,
       author: authorOf(share.email),
       files: await filesInFolder(db, folder.id),
       kind: share.kind,

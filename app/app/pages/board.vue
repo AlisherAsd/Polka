@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import type { Card } from '~/types/card'
 import type { Note } from '~/api/notes'
+import { updateFolder as updateFolderRequest } from '~/api/notes'
 import {
   createShare as createShareRequest,
   fetchShares as fetchSharesRequest,
@@ -18,7 +19,7 @@ import { useApiBase } from '~/api/client'
  * показать, публикацию и сохранение позиций.
  */
 const { placed, links, init: initBoard, initShared, sharedTitle, sharedAuthor, moveNode } = useBoard()
-const { notes, topFolders, rootFolder } = useFiles()
+const { notes, topFolders, rootFolder, reload: reloadFiles } = useFiles()
 const { tabs, activeId, restore, open, activate, close, rename, prune } = useBoardTabs()
 const route = useRoute()
 const router = useRouter()
@@ -119,6 +120,55 @@ async function openFullBoard(): Promise<void> {
 
   if (!opened) {
     await navigateTo(href)
+  }
+}
+
+/** Модалка настроек доски: название и ссылка на превью. */
+const settingsOpen = ref<boolean>(false)
+const editName = ref<string>('')
+const editPreview = ref<string>('')
+const savingSettings = ref<boolean>(false)
+
+function openBoardSettings(): void {
+  const folder = currentFolder.value
+
+  if (!folder) {
+    return
+  }
+
+  editName.value = folder.name
+  editPreview.value = folder.preview ?? ''
+  settingsOpen.value = true
+}
+
+async function saveBoardSettings(): Promise<void> {
+  const folder = currentFolder.value
+  const name = editName.value.trim()
+
+  if (!folder || savingSettings.value) {
+    return
+  }
+
+  if (name.length === 0) {
+    notify.error('Укажите название доски')
+
+    return
+  }
+
+  savingSettings.value = true
+
+  try {
+    await updateFolderRequest(apiBase, folder.id, {
+      name,
+      preview: editPreview.value.trim() || null,
+    })
+    await reloadFiles()
+    settingsOpen.value = false
+    notify.success('Настройки доски сохранены')
+  } catch (error) {
+    notify.fail(error, 'Не удалось сохранить настройки')
+  } finally {
+    savingSettings.value = false
   }
 }
 
@@ -459,19 +509,6 @@ function handleFlowSelect(keys: string[]): void {
           class="rounded-lg"
         />
 
-        <UButton
-          v-if="!fullView && !shareSlug && isAuth && currentFolder"
-          type="button"
-          color="neutral"
-          variant="outline"
-          size="xs"
-          :icon="boardShare ? 'i-lucide-lock' : 'i-lucide-share-2'"
-          :label="boardShare ? 'Сделать приватной' : 'Сделать публичной'"
-          class="rounded-lg"
-          :loading="sharing"
-          @click="toggleBoardVisibility"
-        />
-
         <!-- Своя доска без интерфейса -->
         <UButton
           v-if="!fullView && !shareSlug && isAuth && currentFolder"
@@ -484,6 +521,45 @@ function handleFlowSelect(keys: string[]): void {
           class="rounded-lg"
           @click="openFullBoard"
         />
+
+        <!-- Настройки доски: публикация и редактирование -->
+        <UPopover
+          v-if="!fullView && !shareSlug && isAuth && currentFolder"
+          :content="{ align: 'start', side: 'bottom', sideOffset: 6 }"
+        >
+          <UButton
+            type="button"
+            color="neutral"
+            variant="outline"
+            size="xs"
+            icon="i-lucide-settings"
+            label="Настройки"
+            class="rounded-lg"
+            :loading="sharing"
+          />
+
+          <template #content>
+            <div class="flex w-52 flex-col p-1 text-xs">
+              <button
+                type="button"
+                class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app"
+                @click="toggleBoardVisibility"
+              >
+                <UIcon :name="boardShare ? 'i-lucide-eye-off' : 'i-lucide-globe'" class="size-3.5 text-mute" />
+                {{ boardShare ? 'Скрыть' : 'Сделать публичной' }}
+              </button>
+
+              <button
+                type="button"
+                class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-ink hover:bg-app"
+                @click="openBoardSettings"
+              >
+                <UIcon name="i-lucide-pencil" class="size-3.5 text-mute" />
+                Редактировать
+              </button>
+            </div>
+          </template>
+        </UPopover>
       </div>
     </header>
 
@@ -562,5 +638,55 @@ function handleFlowSelect(keys: string[]): void {
     </div>
 
     <AppSummarizeModal :notes="selectedNotes" :cards="selectedCards" />
+
+    <UModal v-model:open="settingsOpen" title="Настройки доски" :ui="{ content: 'sm:max-w-lg' }">
+      <template #body>
+        <div class="flex flex-col gap-3">
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-mute">Название</span>
+            <UInput
+              v-model="editName"
+              placeholder="Введите название"
+              aria-label="Название доски"
+              class="w-full"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-mute">Ссылка для превью доски</span>
+            <UInput
+              v-model="editPreview"
+              placeholder="https://…/cover.png"
+              aria-label="Ссылка для превью доски"
+              class="w-full"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            size="md"
+            label="Отмена"
+            class="rounded-xl"
+            @click="settingsOpen = false"
+          />
+          <UButton
+            type="button"
+            color="primary"
+            variant="solid"
+            size="md"
+            label="Сохранить"
+            class="rounded-xl px-5"
+            :loading="savingSettings"
+            @click="saveBoardSettings"
+          />
+        </div>
+      </template>
+    </UModal>
   </section>
 </template>

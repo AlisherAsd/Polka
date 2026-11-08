@@ -9,11 +9,26 @@ const props = defineProps<{
   to: string
   /** Заметок в папке. */
   files: number
+  /** Ссылка на превью доски; пусто — заглушка. */
+  preview?: string | null
   /** Публичная доска: показываем глобус и автора. */
   isPublic?: boolean
   /** Автор (для публичной ленты). */
   author?: string | null
 }>()
+
+const previewFailed = ref<boolean>(false)
+
+watch(
+  () => props.preview,
+  () => {
+    previewFailed.value = false
+  },
+)
+
+const showPreview = computed<boolean>(
+  () => Boolean(props.preview) && !previewFailed.value,
+)
 
 const authorInitial = computed<string>(() => {
   const email = props.author?.trim() ?? ''
@@ -39,7 +54,16 @@ const filesLabel = computed<string>(() => {
   >
     <!-- Заглушка вместо кастомной обложки доски -->
     <div class="relative aspect-video w-full overflow-hidden bg-[#ededed]">
+      <img
+        v-if="showPreview"
+        :src="preview ?? undefined"
+        :alt="title"
+        loading="lazy"
+        class="h-full w-full object-cover"
+        @error="previewFailed = true"
+      />
       <div
+        v-else
         class="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_20%_20%,#f7f4ef,transparent_55%),linear-gradient(135deg,#f1ede6,#e4dfd6)]"
       >
         <UIcon name="i-lucide-columns-3" class="size-10 text-mute/70" />

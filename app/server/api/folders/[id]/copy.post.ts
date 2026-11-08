@@ -15,6 +15,7 @@ interface FolderRowLike {
   user_id: string
   is_root: number
   parent_id: string | null
+  preview: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event) => {
 
   const db = dbOf(event)
   const source = await db.first<FolderRowLike>(
-    'SELECT id, name, user_id, is_root, parent_id FROM folders WHERE id = ? AND user_id = ?',
+    'SELECT id, name, user_id, is_root, parent_id, preview FROM folders WHERE id = ? AND user_id = ?',
     sourceId,
     userId,
   )
@@ -43,14 +44,15 @@ export default defineEventHandler(async (event) => {
 
   // Верхняя папка копируется как верхняя (со своей доской), вложенная — во вложенные.
   await db.run(
-    `INSERT INTO folders (id, name, slug, created_at, user_id, is_root, parent_id)
-     VALUES (?, ?, ?, ?, ?, 0, ?)`,
+    `INSERT INTO folders (id, name, slug, created_at, user_id, is_root, parent_id, preview)
+     VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
     newId,
     newName,
     newId,
     now,
     userId,
     source.parent_id,
+    source.preview,
   )
 
   // Заметки папки → новые строки с привязкой к новой папке.

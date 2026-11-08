@@ -18,6 +18,7 @@ export interface FolderLike {
   is_root: number
   parent_id: string | null
   user_id: string | null
+  preview: string | null
   created_at: string
 }
 
@@ -36,6 +37,8 @@ export interface FolderView {
   parentId: string | null
   /** id доски верхней папки; `null` у вложенных. */
   boardId: string | null
+  /** Ссылка на превью доски (картинка для карточки на главной). */
+  preview: string | null
   createdAt: string
 }
 
@@ -164,6 +167,7 @@ export async function listFolders(db: Database, userId: string): Promise<FolderV
     isRoot: row.is_root === 1,
     parentId: row.parent_id,
     boardId: row.board_id ?? null,
+    preview: row.preview ?? null,
     createdAt: row.created_at,
   }))
 }

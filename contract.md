@@ -103,6 +103,7 @@ users
 | `user_id` | TEXT | → `users.id` CASCADE | `NULL` — общая папка (legacy) |
 | `is_root` | INTEGER | NOT NULL DEFAULT 0 | 1 — «Мои знания» |
 | `parent_id` | TEXT | → `folders.id` CASCADE | у верхних папок `NULL` |
+| `preview` | TEXT | | ссылка на картинку-превью доски для карточки на главной |
 
 Индексы:
 - `idx_folders_user (user_id)`;
@@ -110,6 +111,8 @@ users
 
 Правила:
 - корень («Мои знания») создаётся лениво (`ensureRootFolder`) и не удаляется;
+- `preview` задаётся в настройках доски (`PATCH /api/folders/:id`), пустая
+  строка очищает превью; на главной карточка показывает его или заглушку;
 - удаление папки не удаляет файлы: `notes.folder_id` становится `NULL`
   (объявлено `ON DELETE SET NULL`, но код дополнительно обнуляет вручную).
 
@@ -222,7 +225,8 @@ users
 | `GET /api/auth/me` | `sessions`, `users` |
 | `GET/POST /api/items`, `PATCH/DELETE /api/items/:id` | `items` |
 | `GET /api/folders` | `folders`, `boards` |
-| `POST /api/folders`, `POST /api/folders/:id/copy`, `DELETE /api/folders/:id` | `folders`, `boards`, `notes`, `board_nodes` |
+| `GET /api/boards` (главная) | `folders`, `boards`, `notes`, `board_nodes`, `shares`, `users` |
+| `POST /api/folders`, `PATCH /api/folders/:id`, `POST /api/folders/:id/copy`, `DELETE /api/folders/:id` | `folders`, `boards`, `notes`, `board_nodes` |
 | `POST /api/folders/reset` | `folders`, `notes`, `boards` |
 | `GET/POST /api/notes`, `GET/PATCH/DELETE /api/notes/:id` | `notes` |
 | `GET /api/boards/:folderId` | `boards`, `board_nodes`, `notes`, `items` |
@@ -246,6 +250,7 @@ users
 | `0010_workspaces` | корень «Мои знания», `boards`, `folders.parent_id/is_root`, `board_nodes.board_id` |
 | `0011_board_node_unique_per_board` | уникальность узлов в пределах доски |
 | `0012_drop_ai_folder` | удаление служебной `ai-voult`, заметки → в корень |
+| `0013_folder_preview` | `folders.preview` — ссылка на превью доски |
 
 ## Правила для новых изменений
 

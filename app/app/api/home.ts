@@ -4,6 +4,8 @@ import { apiFetch, type ApiBase } from './client'
 export interface HomeFolder {
   id: string
   name: string
+  /** Ссылка на превью доски (может не быть). */
+  preview: string | null
   boardId: string | null
   /** Заметок в папке. */
   files: number
@@ -16,6 +18,7 @@ export interface HomeFolder {
 export interface HomePublicBoard {
   slug: string
   title: string
+  preview: string | null
   author: string
   files: number
   kind: string

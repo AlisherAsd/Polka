@@ -27,6 +27,8 @@ export interface Folder {
   parentId?: string | null
   /** Доска папки (у верхних папок есть всегда). */
   boardId?: string | null
+  /** Ссылка на превью доски для карточки на главной. */
+  preview?: string | null
   createdAt: string
 }
 
@@ -124,6 +126,20 @@ export async function createFolder(
 export async function copyFolder(base: ApiBase, id: string): Promise<Folder> {
   const res = await apiFetch<{ folder: Folder }>(base, `/api/folders/${encodeURIComponent(id)}/copy`, {
     method: 'POST',
+  })
+
+  return res.folder
+}
+
+/** Настройки доски: название папки и/или превью. */
+export async function updateFolder(
+  base: ApiBase,
+  id: string,
+  payload: { name?: string; preview?: string | null },
+): Promise<Folder | null> {
+  const res = await apiFetch<{ folder: Folder | null }>(base, `/api/folders/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: payload,
   })
 
   return res.folder

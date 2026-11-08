@@ -105,6 +105,7 @@ useHead({ title: 'Доска — Полка' })
             :title="folder.name"
             :to="`/board?folder=${folder.id}`"
             :files="folder.files"
+            :preview="folder.preview"
             :is-public="Boolean(folder.shareSlug)"
           />
         </li>
@@ -132,6 +133,7 @@ useHead({ title: 'Доска — Полка' })
             :title="board.title"
             :to="`/board?share=${board.slug}`"
             :files="board.files"
+            :preview="board.preview"
             is-public
             :author="board.author"
           />
