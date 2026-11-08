@@ -5,17 +5,16 @@
  * выставил переменную в `wrangler.jsonc`/`.env` — и после деплоя фича скрыта.
  */
 
-/** Активен ли премиум: корона в хедере, покупка, упоминания в профиле и подсказках. */
+/**
+ * Активен ли премиум: корона в хедере, покупка, упоминания в профиле и подсказках.
+ * По умолчанию выключен — включается `NUXT_PUBLIC_PREMIUM_ACTIVE=true`.
+ */
 export function isFeaturePremiumActive(): boolean {
   const raw = String(useRuntimeConfig().public?.premiumActive ?? '')
     .trim()
     .toLowerCase()
 
-  // Пусто — фича включена (поведение до появления флага).
-  if (raw.length === 0) {
-    return true
-  }
-
+  // По умолчанию премиум выключен: включается только явным true/1/on.
   return ['1', 'true', 'yes', 'on'].includes(raw)
 }
 
