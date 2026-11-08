@@ -59,6 +59,19 @@ export default defineNuxtConfig({
     },
   },
 
+  // Vue Flow подключается только на доске — заранее кладём в pre-bundle,
+  // иначе Vite находит его в рантайме и страница перезагружается.
+  vite: {
+    optimizeDeps: {
+      include: [
+        "@vue-flow/core",
+        "@vue-flow/background",
+        "@vue-flow/controls",
+        "@vue-flow/minimap",
+      ],
+    },
+  },
+
   css: ["~/assets/css/main.css"],
 
   // Тёмная тема не используется: принудительно light, чтобы компоненты Nuxt UI

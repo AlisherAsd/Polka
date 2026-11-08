@@ -232,3 +232,10 @@ img {
     opacity: 1 !important;
   }
 }
+
+/* Управление только для тач-экранов: на десктопе с мышью скрыто. */
+@media (hover: hover) and (pointer: fine) {
+  .touch-only {
+    display: none !important;
+  }
+}

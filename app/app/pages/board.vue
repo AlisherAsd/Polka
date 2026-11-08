@@ -311,17 +311,6 @@ watch(shareSlug, (next) => {
 
 const isEmpty = computed<boolean>(() => placed.value.length === 0)
 
-/** Подсказка в шапке: меняется в зависимости от выделения. */
-const hint = computed<string>(() => {
-  if (multiSelect.value) {
-    return 'тапайте по карточкам, чтобы выбрать несколько'
-  }
-
-  return selectedIds.value.length > 0
-    ? `выбрано: ${selectedIds.value.length}`
-    : 'перетаскивайте карточки · Shift + рамка — выделение'
-})
-
 /** Карточки из выделения: к ним привязывается результат саммари. */
 const selectedCards = computed<Card[]>(() =>
   placed.value
@@ -396,7 +385,7 @@ function handleFlowSelect(keys: string[]): void {
 
         <UIcon
           name="i-lucide-x"
-          class="size-3 shrink-0 cursor-pointer text-mute opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
+          class="size-3.5 shrink-0 cursor-pointer text-mute opacity-60 transition-opacity hover:text-ink hover:opacity-100"
           role="button"
           tabindex="0"
           :aria-label="`Закрыть доску «${tab.name}»`"
@@ -406,96 +395,90 @@ function handleFlowSelect(keys: string[]): void {
       </div>
     </div>
 
-    <!-- Шапка: подсказка сразу за названием доски, справа — действия -->
-    <header
-      class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:flex-nowrap sm:px-8"
-    >
-      <div class="flex min-w-0 shrink-0 items-center gap-2">
+    <!-- Шапка: название (и автор публичной доски), ниже — кнопки-иконки -->
+    <header class="flex flex-col gap-1 px-3 py-2 sm:px-8">
+      <div class="flex min-w-0 items-center gap-2">
         <h1 class="max-w-[220px] truncate text-base font-semibold leading-none text-ink sm:text-lg">{{ boardTitle }}</h1>
 
-        <!-- Публичная доска: кружок с буквой и полный email автора -->
+        <!-- Публичная доска: только кружок с первой буквой, email — в подсказке -->
         <UTooltip
           v-if="shareSlug && sharedAuthor"
           :text="`Это доска пользователя «${sharedAuthor}»`"
           :delay-duration="150"
         >
-          <div class="flex min-w-0 items-center gap-1.5">
-            <span
-              class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold uppercase leading-none text-white"
-              aria-hidden="true"
-            >
-              {{ authorInitial }}
-            </span>
-            <span class="max-w-[240px] truncate text-xs leading-none text-mute">{{ sharedAuthor }}</span>
-          </div>
+          <span
+            class="flex size-5 shrink-0 cursor-default items-center justify-center rounded-full bg-primary text-[10px] font-semibold uppercase leading-none text-white"
+          >
+            {{ authorInitial }}
+          </span>
         </UTooltip>
       </div>
 
-      <!-- Телефон: включить режим выбора нескольких карточек -->
-      <UButton
-        v-if="!shareSlug"
-        type="button"
-        color="neutral"
-        :variant="multiSelect ? 'solid' : 'outline'"
-        size="xs"
-        :icon="multiSelect ? 'i-lucide-check' : 'i-lucide-list-checks'"
-        :label="multiSelect ? 'Готово' : 'Выбрать'"
-        class="shrink-0 rounded-lg"
-        @click="toggleMultiSelect"
-      />
+      <div class="flex flex-wrap items-center gap-1.5">
+        <!-- Телефон: режим выбора нескольких; на десктопе не нужен -->
+        <UButton
+          v-if="!shareSlug"
+          type="button"
+          color="neutral"
+          :variant="multiSelect ? 'solid' : 'outline'"
+          size="xs"
+          :icon="multiSelect ? 'i-lucide-check' : 'i-lucide-list-checks'"
+          :label="multiSelect ? 'Готово' : 'Выбрать'"
+          :class="['touch-only rounded-lg', multiSelect ? '!border-ink !bg-ink !text-white' : '']"
+          @click="toggleMultiSelect"
+        />
 
-      <!-- Публичная доска: открыть ту же доску без интерфейса приложения -->
-      <UButton
-        v-if="shareSlug && !fullView"
-        type="button"
-        color="neutral"
-        variant="outline"
-        size="xs"
-        icon="i-lucide-maximize-2"
-        label="Открыть полностью"
-        class="shrink-0 rounded-lg"
-        @click="openFullBoard"
-      />
+        <!-- Публичная доска: открыть без интерфейса приложения -->
+        <UButton
+          v-if="shareSlug && !fullView"
+          type="button"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          icon="i-lucide-maximize-2"
+          label="Открыть полностью"
+          class="rounded-lg"
+          @click="openFullBoard"
+        />
 
-      <!-- Полноэкранный режим: вернуться на главную -->
-      <UButton
-        v-if="fullView"
-        to="/"
-        color="neutral"
-        variant="outline"
-        size="xs"
-        icon="i-lucide-house"
-        label="На главную"
-        class="shrink-0 rounded-lg"
-      />
+        <!-- Полноэкранный режим: на главную -->
+        <UButton
+          v-if="fullView"
+          to="/"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          icon="i-lucide-house"
+          label="На главную"
+          class="rounded-lg"
+        />
 
-      <UButton
-        v-if="!fullView && !shareSlug && isAuth && currentFolder"
-        type="button"
-        color="neutral"
-        variant="outline"
-        size="xs"
-        :icon="boardShare ? 'i-lucide-lock' : 'i-lucide-share-2'"
-        :label="boardShare ? 'Сделать приватной' : 'Сделать публичной'"
-        class="shrink-0 rounded-lg"
-        :loading="sharing"
-        @click="toggleBoardVisibility"
-      />
+        <UButton
+          v-if="!fullView && !shareSlug && isAuth && currentFolder"
+          type="button"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          :icon="boardShare ? 'i-lucide-lock' : 'i-lucide-share-2'"
+          :label="boardShare ? 'Сделать приватной' : 'Сделать публичной'"
+          class="rounded-lg"
+          :loading="sharing"
+          @click="toggleBoardVisibility"
+        />
 
-      <!-- Своя доска без интерфейса — в новой вкладке, рядом с публикацией -->
-      <UButton
-        v-if="!fullView && !shareSlug && isAuth && currentFolder"
-        type="button"
-        color="neutral"
-        variant="outline"
-        size="xs"
-        icon="i-lucide-maximize-2"
-        label="Открыть полностью"
-        class="shrink-0 rounded-lg"
-        @click="openFullBoard"
-      />
-      <!-- Подсказка занимает остаток строки и обрезается: кнопки слева не прыгают -->
-      <span class="min-w-0 flex-1 truncate text-xs leading-none text-mute">{{ hint }}</span>
+        <!-- Своя доска без интерфейса -->
+        <UButton
+          v-if="!fullView && !shareSlug && isAuth && currentFolder"
+          type="button"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          icon="i-lucide-maximize-2"
+          label="Открыть полностью"
+          class="rounded-lg"
+          @click="openFullBoard"
+        />
+      </div>
     </header>
 
     <div class="relative min-h-0 flex-1 bg-app">
