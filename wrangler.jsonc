@@ -20,6 +20,8 @@
     "NUXT_PUBLIC_API_BASE": "",
     // Кому разрешено ходить в /api/** по CORS: сайт, dev и оболочки
     // (Tauri: tauri://localhost на macOS, http(s)://tauri.localhost на остальных).
+    // Премиум: "false" временно убирает корону, покупку и упоминания.
+    "NUXT_PUBLIC_PREMIUM_ACTIVE": "true",
     "CORS_ORIGINS": "https://polka.alishersharipovtol.workers.dev,http://localhost:3000,http://localhost,https://localhost,capacitor://localhost,tauri://localhost,http://tauri.localhost,https://tauri.localhost",
   },
   // База карточек. database_id — заглушка: подставь id из `npx wrangler d1 create polka-db`.

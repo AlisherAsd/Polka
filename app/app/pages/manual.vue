@@ -78,6 +78,31 @@ const SECTIONS: readonly Section[] = [
   },
 ]
 
+const premiumActive = isFeaturePremiumActive()
+
+/** Если премиум выключен, из раздела «ИИ» убираем упоминания подписки. */
+const sections = computed<readonly Section[]>(() => {
+  if (premiumActive) {
+    return SECTIONS
+  }
+
+  return SECTIONS.map((section) => {
+    if (section.id !== 'ai') {
+      return section
+    }
+
+    return {
+      ...section,
+      items: [
+        'ИИ работает с вашим ключом OpenRouter: запросы идут напрямую в модель.',
+        ...section.items.filter((item) =>
+          !item.startsWith('Премиум') && !item.startsWith('ИИ работает двумя'),
+        ),
+      ],
+    }
+  })
+})
+
 /** Куда вернуться: история браузера, иначе на главную. */
 function goBack(): void {
   if (import.meta.client && window.history.length > 1) {
@@ -119,7 +144,7 @@ function goBack(): void {
 
       <nav class="mt-6 flex flex-wrap gap-2" aria-label="Разделы руководства">
         <a
-          v-for="section in SECTIONS"
+          v-for="section in sections"
           :key="`nav-${section.id}`"
           :href="`#${section.id}`"
           class="rounded-full border border-line px-3 py-1 text-xs text-dim transition-colors hover:border-primary hover:text-ink"
@@ -130,7 +155,7 @@ function goBack(): void {
 
       <div class="mt-10 flex flex-col gap-10">
         <section
-          v-for="section in SECTIONS"
+          v-for="section in sections"
           :id="section.id"
           :key="section.id"
           class="flex scroll-mt-6 flex-col gap-3"

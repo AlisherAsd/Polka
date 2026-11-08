@@ -95,8 +95,10 @@ npm run deploy         # или: make ship       — сборка и выкла�
    ```bash
    npx wrangler secret put OPENROUTER_KEY    # или: make secret
    ```
-3. **Переменные.** `NUXT_PUBLIC_API_BASE` и `CORS_ORIGINS` — в `wrangler.jsonc`
-   (`vars`). Меняются только новым деплоем.
+3. **Переменные.** `NUXT_PUBLIC_API_BASE`, `CORS_ORIGINS` и
+   `NUXT_PUBLIC_PREMIUM_ACTIVE` — в `wrangler.jsonc` (`vars`). Меняются только
+   новым деплоем. `NUXT_PUBLIC_PREMIUM_ACTIVE=false` временно убирает премиум
+   (корона, покупка, упоминания), свой ключ OpenRouter остаётся.
 4. **Автодеплой.** В Cloudflare Workers Builds (Settings → Build) должно быть:
 
    | Параметр         | Значение              |

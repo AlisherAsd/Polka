@@ -19,10 +19,13 @@ export function useAiKey() {
   const loaded = useState<boolean>('ai-openrouter-key-loaded', () => false)
   const pending = useState<boolean>('ai-premium-pending', () => false)
 
+  const premiumActive = isFeaturePremiumActive()
   const isPremium = computed<boolean>(() => user.value?.isPremium === true)
 
-  /** Может ли пользователь пользоваться ИИ: премиум или свой ключ. */
-  const canUseAi = computed<boolean>(() => isPremium.value || key.value.length > 0)
+  /** Может ли пользователь пользоваться ИИ: премиум (если включён) или свой ключ. */
+  const canUseAi = computed<boolean>(
+    () => (premiumActive && isPremium.value) || key.value.length > 0,
+  )
 
   /** Маска ключа для UI: `sk-or-v1-…ab12`. */
   const maskedKey = computed<string>(() => {
@@ -96,6 +99,10 @@ export function useAiKey() {
 
   /** «Купить премиум»: пока просто включает флаг на сервере. */
   async function buyPremium(): Promise<void> {
+    if (!premiumActive) {
+      throw new Error('Премиум временно недоступен')
+    }
+
     if (!isAuth.value) {
       throw new Error('Сначала войдите в аккаунт')
     }

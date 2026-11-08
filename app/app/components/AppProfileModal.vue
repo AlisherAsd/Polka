@@ -6,6 +6,7 @@
 const { open, closeModal } = useProfileModal()
 const { user, signOut, isAuth } = useAuth()
 const { isPremium, maskedKey, key: aiKey } = useAiKey()
+const premiumActive = isFeaturePremiumActive()
 const { openModal: openPremiumModal } = usePremiumModal()
 const { openModal: openKeyModal } = useAiKeyModal()
 const notify = useNotify()
@@ -98,12 +99,13 @@ watch(open, (isOpen) => {
           </span>
           <div class="flex min-w-0 flex-col">
             <span class="truncate text-sm font-semibold text-ink">{{ user?.email }}</span>
-            <span class="text-[11px] text-mute">{{ isPremium ? 'премиум' : 'бесплатный аккаунт' }}</span>
+            <span v-if="premiumActive" class="text-[11px] text-mute">{{ isPremium ? 'премиум' : 'бесплатный аккаунт' }}</span>
           </div>
         </div>
 
-        <!-- Премиум -->
+        <!-- Премиум (временно скрывается флагом) -->
         <button
+          v-if="premiumActive"
           type="button"
           class="flex items-center gap-1.5 self-start text-[11px] text-dim transition-colors hover:text-ink"
           @click="goPremium"

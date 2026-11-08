@@ -68,8 +68,8 @@ function handleAsk(): void {
       <!-- Ключ OpenRouter: круглая кнопка на акцентном фоне, открывает модалку ключа -->
       <UButton
         type="button"
-        color="primary"
-        variant="solid"
+        :color="hasAiKey ? 'primary' : 'neutral'"
+        :variant="hasAiKey ? 'solid' : 'ghost'"
         size="md"
         icon="i-lucide-key-round"
         square

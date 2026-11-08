@@ -16,6 +16,7 @@ const { openModal: openKeyModal } = useAiKeyModal()
 const { openModal: openPremiumModal } = usePremiumModal()
 const { openModal: openAuthModal } = useAuthModal()
 const { isAuth } = useAuth()
+const premiumActive = isFeaturePremiumActive()
 
 const isOpen = ref<boolean>(false)
 
@@ -71,7 +72,7 @@ function openPremium(): void {
           <p class="text-sm font-semibold text-ink">Нужен вход</p>
           <p class="text-xs leading-snug text-dim">
             {{ feature }} доступно после входа в аккаунт: затем можно указать свой ключ
-            OpenRouter или оформить премиум.
+            OpenRouter<template v-if="premiumActive"> или оформить премиум</template>.
           </p>
           <UButton
             type="button"
@@ -88,7 +89,7 @@ function openPremium(): void {
         <template v-else>
           <p class="text-sm font-semibold text-ink">{{ feature }} недоступно</p>
           <p class="text-xs leading-snug text-dim">
-            Укажите свой ключ OpenRouter или оформите премиум — тогда запросы пойдут через сервер.
+            Укажите свой ключ OpenRouter<template v-if="premiumActive"> или оформите премиум</template> — тогда запросы пойдут через сервер.
           </p>
 
           <div class="flex flex-wrap gap-2">
@@ -103,6 +104,7 @@ function openPremium(): void {
               @click="openKey"
             />
             <UButton
+              v-if="premiumActive"
               type="button"
               color="neutral"
               variant="outline"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** Вторая панель: открыта/закрыта, ширина и состояние перетаскивания. */
 const { open, width: panelWidth, setWidth, restoreWidth } = useSidePanel()
+const premiumActive = isFeaturePremiumActive()
 
 /** Пока тянут разделитель, анимацию ширины выключаем. */
 const resizing = ref<boolean>(false)
@@ -107,7 +108,7 @@ const minimal = computed<boolean>(
 
     <AppAiKeyModal />
 
-    <AppPremiumModal />
+    <AppPremiumModal v-if="premiumActive" />
 
     <AppProfileModal />
 

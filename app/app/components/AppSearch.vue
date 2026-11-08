@@ -32,8 +32,13 @@ const { openSidePanel, closeSidePanel } = useSidePanel()
 const { rootFolder } = useFiles()
 const { isAuth, signOut } = useAuth()
 const notify = useNotify()
+const premiumActive = isFeaturePremiumActive()
 
-const results = computed<SiteEntry[]>(() => searchSite(query.value))
+const results = computed<SiteEntry[]>(() =>
+  searchSite(query.value).filter(
+    (entry) => premiumActive || entry.action !== 'open-premium',
+  ),
+)
 
 watch(results, () => {
   activeIndex.value = 0

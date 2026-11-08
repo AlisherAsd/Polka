@@ -56,6 +56,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: "",
+      // Premium-функции можно временно выключить: NUXT_PUBLIC_PREMIUM_ACTIVE=false.
+      premiumActive: env.NUXT_PUBLIC_PREMIUM_ACTIVE ?? "",
     },
   },
 

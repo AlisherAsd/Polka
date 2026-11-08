@@ -5,6 +5,7 @@
  */
 const { open, closeModal } = useAiKeyModal()
 const { key: storedKey, maskedKey, isPremium, saveKey, removeKey } = useAiKey()
+const premiumActive = isFeaturePremiumActive()
 const notify = useNotify()
 
 const value = ref<string>('')
@@ -44,7 +45,7 @@ async function submit(): Promise<void> {
     <template #body>
       <div class="flex flex-col gap-4">
         <p
-          v-if="isPremium"
+          v-if="premiumActive && isPremium"
           class="rounded-xl bg-[#eef7ee] px-3 py-2 text-xs leading-snug text-[#1e5b2a]"
         >
           У вас премиум: запросы к модели идут через сервер Полки, свой ключ не нужен.
