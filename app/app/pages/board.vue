@@ -406,11 +406,17 @@ function handleFlowSelect(keys: string[]): void {
           :text="`Это доска пользователя «${sharedAuthor}»`"
           :delay-duration="150"
         >
-          <span
-            class="flex size-5 shrink-0 cursor-default items-center justify-center rounded-full bg-primary text-[10px] font-semibold uppercase leading-none text-white"
-          >
-            {{ authorInitial }}
-          </span>
+          <div class="flex min-w-0 items-center gap-1.5">
+            <span
+              class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold uppercase leading-none text-white"
+              aria-hidden="true"
+            >
+              {{ authorInitial }}
+            </span>
+            <span class="hidden max-w-[240px] truncate text-xs leading-none text-mute sm:inline">
+              {{ sharedAuthor }}
+            </span>
+          </div>
         </UTooltip>
       </div>
 

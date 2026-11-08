@@ -65,9 +65,9 @@ async function cardsOnBoard(db: Database, boardId: string): Promise<number> {
   return row?.n ?? 0
 }
 
-/** Имя автора для публичной ленты: часть email до `@`. */
+/** Автор публичной доски: полный email (кружок с буквой рисует клиент). */
 function authorOf(email: string | null): string {
-  return email?.split('@')[0] ?? 'Полка'
+  return email?.trim() || 'Полка'
 }
 
 export default defineEventHandler(async (event) => {

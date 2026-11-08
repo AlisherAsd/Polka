@@ -15,6 +15,12 @@ const props = defineProps<{
   author?: string | null
 }>()
 
+const authorInitial = computed<string>(() => {
+  const email = props.author?.trim() ?? ''
+
+  return email.length > 0 ? email[0]!.toUpperCase() : '?'
+})
+
 const filesLabel = computed<string>(() => {
   const n = props.files
 
@@ -53,9 +59,19 @@ const filesLabel = computed<string>(() => {
         {{ title }}
       </p>
 
+      <!-- Автор доски: кружок с буквой и email -->
+      <div v-if="isPublic && author" class="flex min-w-0 items-center gap-1.5">
+        <span
+          class="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-semibold uppercase leading-none text-white"
+          aria-hidden="true"
+        >
+          {{ authorInitial }}
+        </span>
+        <span class="truncate text-[11px] leading-none text-mute" :title="author">{{ author }}</span>
+      </div>
+
       <div class="mt-auto flex items-center justify-between gap-2 pt-0.5 text-[11px] text-mute">
         <span class="truncate">{{ filesLabel }}</span>
-        <span v-if="isPublic && author" class="max-w-[50%] truncate" :title="author">{{ author }}</span>
       </div>
     </div>
   </NuxtLink>
