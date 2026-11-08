@@ -11,6 +11,7 @@ const { openModal: openAuthModal } = useAuthModal()
 const { isAuth } = useAuth()
 
 const isHome = computed<boolean>(() => route.path === '/')
+const isItems = computed<boolean>(() => route.path === '/items')
 const isChat = computed<boolean>(() => route.path === '/chat')
 /** Доска — страница с табами; активная вкладка хранится в `useBoardTabs`. */
 const boardTabs = useBoardTabs()
@@ -42,6 +43,9 @@ const isBoard = computed<boolean>(() => route.path.startsWith('/board'))
     <nav class="flex flex-col items-center gap-3" aria-label="Разделы">
       <UButton :to="'/'" color="neutral" :variant="isHome ? 'soft' : 'ghost'" size="md" icon="i-lucide-house" square
         class="rounded-xl" title="Главная" aria-label="Главная" :aria-current="isHome ? 'page' : undefined" />
+
+      <UButton to="/items" color="neutral" :variant="isItems ? 'soft' : 'ghost'" size="md" icon="i-lucide-library" square
+        class="rounded-xl" title="Библиотека" aria-label="Библиотека" :aria-current="isItems ? 'page' : undefined" />
 
       <UButton to="/chat" color="neutral" :variant="isChat ? 'soft' : 'ghost'" size="md"
         icon="i-lucide-message-circle-question" square class="rounded-xl" title="Чат" aria-label="Чат"

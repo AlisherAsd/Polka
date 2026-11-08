@@ -35,7 +35,7 @@ const props = withDefaults(
       Триггер — ровно логотип: обёртка `w-fit` не растягивается и не сдвигает
       его ни по вертикали, ни по горизонтали. Отступ сверху — внешним классом.
     -->
-    <NuxtLink to="/" class="block w-fit cursor-pointer" :class="props.class" aria-label="Полка — на главную">
+    <NuxtLink to="/items" class="block w-fit cursor-pointer" :class="props.class" aria-label="Полка — на главную">
       <img src="/miniliogo.png" alt="Полка" width="40" height="40" class="block size-[40px] select-none"
         draggable="false">
     </NuxtLink>

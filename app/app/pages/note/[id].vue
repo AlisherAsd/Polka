@@ -126,7 +126,7 @@ useHead(() => ({
     <template v-if="note">
       <header class="flex flex-col gap-1">
         <NuxtLink
-          to="/"
+          to="/items"
           class="inline-flex items-center gap-1 text-xs text-mute hover:text-ink"
         >
           <UIcon name="i-lucide-arrow-left" class="size-3.5" />

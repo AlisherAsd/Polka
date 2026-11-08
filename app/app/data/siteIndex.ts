@@ -38,11 +38,11 @@ export interface SiteEntry {
 const PAGES: SiteEntry[] = [
   {
     id: 'page-home',
-    title: 'Главная',
+    title: 'Библиотека',
     description: 'Карточки: всё сохранённое в одном списке',
     kind: 'page',
-    keywords: ['карточки', 'ссылки', 'список', 'home', 'index'],
-    to: '/',
+    keywords: ['карточки', 'ссылки', 'список', 'home', 'index', 'items'],
+    to: '/items',
   },
   {
     id: 'page-board',

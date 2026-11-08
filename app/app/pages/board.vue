@@ -444,7 +444,7 @@ function handleFlowSelect(keys: string[]): void {
         <!-- Полноэкранный режим: на главную -->
         <UButton
           v-if="fullView"
-          to="/"
+          to="/items"
           color="neutral"
           variant="outline"
           size="xs"

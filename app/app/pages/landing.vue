@@ -5,7 +5,7 @@ definePageMeta({ layout: 'landing' })
 useHead({ title: 'Полка — органайзер ссылок' })
 
 function start(): void {
-  navigateTo('/')
+  navigateTo('/items')
 }
 
 interface Feature {

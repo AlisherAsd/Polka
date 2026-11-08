@@ -86,7 +86,7 @@ function goBack(): void {
     return
   }
 
-  void navigateTo('/')
+  void navigateTo('/items')
 }
 </script>
 
@@ -162,7 +162,7 @@ function goBack(): void {
           @click="goBack"
         />
         <UButton
-          to="/"
+          to="/items"
           color="primary"
           variant="solid"
           size="md"
