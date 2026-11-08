@@ -13,7 +13,7 @@ useHead({
 })
 
 function start(): void {
-  navigateTo('/items')
+  navigateTo('/')
 }
 
 interface Step {
@@ -163,14 +163,8 @@ onBeforeUnmount(() => revealObserver?.disconnect())
     <!-- Герой -->
     <section class="relative z-10 flex min-h-dvh flex-col items-center justify-center px-6 py-24">
       <div class="flex w-full max-w-3xl flex-col items-center gap-8 py-4 text-center">
-        <img
-          src="/logofull.png"
-          alt="Полка — органайзер ссылок"
-          width="400"
-          height="400"
-          class="size-[400px] max-w-full select-none"
-          draggable="false"
-        >
+        <img src="/logofull.png" alt="Полка — органайзер ссылок" width="400" height="400"
+          class="size-[400px] max-w-full select-none" draggable="false">
 
         <p class="max-w-2xl text-balance text-xl font-medium leading-snug text-dim sm:text-2xl">
           Сохраняйте ссылки, видео и посты в одном месте — и находите нужное за
@@ -210,11 +204,8 @@ onBeforeUnmount(() => revealObserver?.disconnect())
       </div>
 
       <ol class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <li
-          v-for="step in STEPS"
-          :key="step.index"
-          data-reveal class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]"
-        >
+        <li v-for="step in STEPS" :key="step.index" data-reveal
+          class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]">
           <span class="text-xs font-semibold text-primary">{{ step.index }}</span>
           <h3 class="text-base font-semibold text-ink">{{ step.title }}</h3>
           <p class="text-sm leading-relaxed text-dim">{{ step.text }}</p>
@@ -238,11 +229,8 @@ onBeforeUnmount(() => revealObserver?.disconnect())
       </div>
 
       <div class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <article
-          v-for="item in BENEFITS"
-          :key="item.title"
-          data-reveal class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]"
-        >
+        <article v-for="item in BENEFITS" :key="item.title" data-reveal
+          class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]">
           <h3 class="text-base font-semibold text-ink">{{ item.title }}</h3>
           <p class="text-sm leading-relaxed text-dim">{{ item.text }}</p>
         </article>
@@ -264,11 +252,8 @@ onBeforeUnmount(() => revealObserver?.disconnect())
       </div>
 
       <div class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <article
-          v-for="item in AUDIENCE"
-          :key="item.title"
-          data-reveal class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]"
-        >
+        <article v-for="item in AUDIENCE" :key="item.title" data-reveal
+          class="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)]">
           <h3 class="text-base font-semibold text-ink">{{ item.title }}</h3>
           <p class="text-sm leading-relaxed text-dim">{{ item.text }}</p>
         </article>
@@ -293,39 +278,31 @@ onBeforeUnmount(() => revealObserver?.disconnect())
           <ul class="mt-2 flex flex-col gap-2 text-sm text-dim">
             <li class="flex items-start gap-2">
               <UIcon name="i-lucide-globe" class="mt-0.5 size-4 shrink-0 text-mute" />
-              <span><span class="font-medium text-ink">Веб</span> — на любом устройстве, ничего устанавливать не нужно.</span>
+              <span><span class="font-medium text-ink">Веб</span> — на любом устройстве, ничего устанавливать не
+                нужно.</span>
             </li>
             <li class="flex items-start gap-2">
               <UIcon name="i-lucide-laptop" class="mt-0.5 size-4 shrink-0 text-mute" />
-              <span><span class="font-medium text-ink">macOS</span> — отдельное приложение, тот же аккаунт и те же материалы.</span>
+              <span><span class="font-medium text-ink">macOS</span> — отдельное приложение, тот же аккаунт и те же
+                материалы.</span>
             </li>
           </ul>
         </div>
 
         <div class="flex flex-col gap-4">
-          <figure data-reveal class="overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:scale-[1.01]">
-            <img
-              src="/mac.png"
-              alt="Полка в приложении для macOS: доска с карточками"
-              width="770"
-              height="446"
-              loading="lazy"
-              class="w-full rounded-xl"
-            >
+          <figure data-reveal
+            class="overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:scale-[1.01]">
+            <img src="/mac.png" alt="Полка в приложении для macOS: доска с карточками" width="770" height="446"
+              loading="lazy" class="w-full rounded-xl">
             <figcaption class="px-2 pb-1 pt-2 text-[11px] text-mute">
               Приложение для macOS
             </figcaption>
           </figure>
 
-          <figure data-reveal class="w-full overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:scale-[1.01]">
-            <img
-              src="/iphone.png"
-              alt="Полка в браузере на телефоне"
-              width="1100"
-              height="861"
-              loading="lazy"
-              class="w-full rounded-xl"
-            >
+          <figure data-reveal
+            class="w-full overflow-hidden rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:scale-[1.01]">
+            <img src="/iphone.png" alt="Полка в браузере на телефоне" width="1100" height="861" loading="lazy"
+              class="w-full rounded-xl">
             <figcaption class="px-2 pb-1 pt-2 text-[11px] text-mute">
               Веб-версия на телефоне
             </figcaption>
@@ -346,17 +323,13 @@ onBeforeUnmount(() => revealObserver?.disconnect())
       </div>
 
       <div class="mt-8 flex flex-col gap-3">
-        <details
-          v-for="item in FAQ"
-          :key="item.question"
-          data-reveal class="group rounded-2xl border border-line bg-surface px-4 py-3"
-        >
-          <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-ink">
+        <details v-for="item in FAQ" :key="item.question" data-reveal
+          class="group rounded-2xl border border-line bg-surface px-4 py-3">
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-ink">
             {{ item.question }}
-            <UIcon
-              name="i-lucide-chevron-down"
-              class="size-4 shrink-0 text-mute transition-transform group-open:rotate-180"
-            />
+            <UIcon name="i-lucide-chevron-down"
+              class="size-4 shrink-0 text-mute transition-transform group-open:rotate-180" />
           </summary>
           <p class="mt-2 text-sm leading-relaxed text-dim">{{ item.answer }}</p>
         </details>
@@ -373,16 +346,10 @@ onBeforeUnmount(() => revealObserver?.disconnect())
       <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-dim">
         Сохраните то, что давно лежит во вкладках. Через месяц будете знать, где что искать.
       </p>
-      <UButton
-        type="button"
-        color="primary"
-        variant="solid"
-        size="lg"
-        label="Попробовать Полку"
+      <UButton type="button" color="primary" variant="solid" size="lg" label="Попробовать Полку"
         trailing-icon="i-lucide-arrow-right"
         class="mt-6 rounded-full !px-10 !py-4 text-base font-semibold text-white shadow-[0_12px_32px_-8px_var(--color-primary-500)] transition-all duration-200 hover:-translate-y-0.5"
-        @click="start"
-      />
+        @click="start" />
     </section>
   </div>
 </template>
