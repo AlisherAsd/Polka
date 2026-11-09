@@ -42,7 +42,7 @@ const defaultFolderId = computed<string>(() => {
   return root?.id ?? folders.value[0]?.id ?? ''
 })
 
-// Панель открыли — подставляем папку по умолчанию (watch ниже, после popoverOpen).
+// Модалку открыли — подставляем папку по умолчанию (watch ниже, после summaryOpen).
 watch(() => summaryState.value.status, (status) => {
   if (status === 'loading') {
     saved.value = false
@@ -98,7 +98,7 @@ function handleSummarize(): void {
   void openWithSummary(props.card)
 }
 
-const popoverOpen = computed<boolean>({
+const summaryOpen = computed<boolean>({
   get: () => isOpen(props.card.id),
   set: (value: boolean) => {
     if (!value && isOpen(props.card.id)) {
@@ -107,8 +107,8 @@ const popoverOpen = computed<boolean>({
   },
 })
 
-// Панель открыли — подставляем папку по умолчанию, если ещё не выбрана.
-watch(popoverOpen, (open) => {
+// Модалку открыли — подставляем папку по умолчанию, если ещё не выбрана.
+watch(summaryOpen, (open) => {
   if (open && !targetFolderId.value) {
     targetFolderId.value = defaultFolderId.value
   }
@@ -170,17 +170,11 @@ function handleToggle(): void {
 </script>
 
 <template>
-  <!--
-    Пока панель саммари открыта, у карточки нет нижнего скругления и тени:
-    карточка и панель читаются как один блок.
-  -->
   <article
     class="group flex h-full flex-col overflow-hidden border bg-surface transition-shadow"
     :class="[
       selected ? 'border-accent ring-2 ring-accent/30' : 'border-line',
-      popoverOpen
-        ? 'rounded-t-2xl rounded-b-none shadow-none'
-        : 'rounded-2xl hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]',
+      'rounded-2xl hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]',
     ]"
   >
     <div class="relative aspect-video w-full overflow-hidden bg-[#ededed]">
@@ -257,147 +251,126 @@ function handleToggle(): void {
       />
     </div>
 
-    <!--
-      Подложка поповера: панель начинается ровно под картинкой (align start +
-      offset 0), непрозрачная, повторяет ширину и форму карточки и растягивается
-      вниз настолько, насколько нужно её содержимому. На сетку не влияет —
-      портал reka-ui рисует её поверх потока.
-    -->
-    <UPopover
-      v-model:open="popoverOpen"
-      :content="{
-        side: 'bottom',
-        align: 'start',
-        sideOffset: 0,
-        sideFlip: false,
-        alignFlip: false,
-        collisionPadding: 0,
-        alignOffset: -1,
-      }"
-      :ui="{ content: 'card-popover' }"
-    >
-      <!-- Триггер — сам информационный блок: панель «заменяет» его содержимое. -->
-      <div
-        class="relative flex flex-1 cursor-pointer flex-col gap-1 p-2"
-        role="button"
-        tabindex="0"
-        :aria-expanded="popoverOpen"
-        :aria-label="`Показать саммари «${card.title}»`"
-        @click="handleSummarize"
-        @keydown.enter.prevent="handleSummarize"
+    <!-- Информационный блок карточки: клик по карточке ничего не открывает -->
+    <div class="relative flex flex-1 flex-col gap-1 p-2">
+      <a
+        :href="card.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="line-clamp-2 text-[13px] font-semibold leading-snug text-ink hover:underline"
+        :title="card.title"
       >
-        <a
-          :href="card.url"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="line-clamp-2 text-[13px] font-semibold leading-snug text-ink hover:underline"
-          :title="card.title"
-          @click.stop
-        >
-          {{ card.title }}
-        </a>
+        {{ card.title }}
+      </a>
 
-        <p
-          v-if="card.summary"
-          class="line-clamp-1 text-[11px] leading-snug text-dim"
-        >
-          {{ card.summary }}
-        </p>
+      <p
+        v-if="card.summary"
+        class="line-clamp-1 text-[11px] leading-snug text-dim"
+      >
+        {{ card.summary }}
+      </p>
 
-        <div v-if="card.tags?.length" class="flex flex-wrap gap-1">
-          <UBadge
-            v-for="tag in card.tags"
-            :key="tag"
-            color="primary"
-            variant="subtle"
-            size="xs"
-            :label="tag"
-          />
-        </div>
-
-        <div class="mt-auto flex items-center justify-between gap-2 pt-0.5 text-[11px] text-mute">
-          <span class="truncate" :title="host">{{ host }}</span>
-          <span class="shrink-0">{{ formattedDate }}</span>
-        </div>
+      <div v-if="card.tags?.length" class="flex flex-wrap gap-1">
+        <UBadge
+          v-for="tag in card.tags"
+          :key="tag"
+          color="primary"
+          variant="subtle"
+          size="xs"
+          :label="tag"
+        />
       </div>
 
-      <template #content>
-        <div class="flex flex-col gap-2">
-          <p class="line-clamp-2 text-[13px] font-semibold leading-snug text-ink">
+      <div class="mt-auto flex items-center justify-between gap-2 pt-0.5 text-[11px] text-mute">
+        <span class="truncate" :title="host">{{ host }}</span>
+        <span class="shrink-0">{{ formattedDate }}</span>
+      </div>
+    </div>
+
+    <!-- Саммари открывается модалкой по кнопке «Суммировать» -->
+    <UModal
+      v-model:open="summaryOpen"
+      title="Саммари"
+      :ui="{ content: 'sm:max-w-lg' }"
+    >
+      <template #body>
+        <div class="flex flex-col gap-3">
+          <p class="line-clamp-2 text-sm font-semibold leading-snug text-ink">
             {{ card.title }}
           </p>
 
           <!-- Заглушка, пока идёт запрос саммари -->
           <div
             v-if="summaryState.status === 'loading'"
-            class="flex flex-col gap-1.5"
+            class="flex flex-col gap-2"
             role="status"
             aria-live="polite"
           >
             <span class="sr-only">Собираем саммари…</span>
-            <div class="h-2.5 w-full animate-pulse rounded bg-[#ededed]" />
-            <div class="h-2.5 w-11/12 animate-pulse rounded bg-[#ededed]" />
-            <div class="h-2.5 w-8/12 animate-pulse rounded bg-[#ededed]" />
+            <div class="h-3 w-full animate-pulse rounded bg-[#ededed]" />
+            <div class="h-3 w-11/12 animate-pulse rounded bg-[#ededed]" />
+            <div class="h-3 w-8/12 animate-pulse rounded bg-[#ededed]" />
           </div>
 
           <!-- Ошибка запроса -->
           <p
             v-else-if="summaryState.status === 'error'"
-            class="text-[11px] leading-snug text-[#b3261e]"
+            class="text-sm leading-snug text-[#b3261e]"
           >
             {{ summaryState.text }}
           </p>
 
-          <!-- Готовый текст саммари: прокручивается, если длинный -->
-          <p
-            v-else-if="summaryState.status === 'ready'"
-            class="max-h-48 overflow-y-auto whitespace-pre-line text-[11px] leading-snug text-dim"
-          >
-            {{ summaryState.text }}
-          </p>
+          <!-- Готовый текст саммари -->
+          <template v-else-if="summaryState.status === 'ready'">
+            <p class="max-h-80 overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-dim">
+              {{ summaryState.text }}
+            </p>
 
-          <!-- Готовое саммари можно сразу положить файлом в папку -->
-          <div v-if="summaryState.status === 'ready'" class="flex items-center gap-1.5">
-            <USelect
-              v-model="targetFolderId"
-              :items="folderItems"
-              size="xs"
-              class="min-w-0 flex-1"
-              placeholder="Папка"
-              aria-label="Папка для файла"
-            />
+            <!-- Готовое саммари можно сразу положить файлом в папку -->
+            <div class="flex flex-wrap items-center gap-2">
+              <USelect
+                v-model="targetFolderId"
+                :items="folderItems"
+                size="sm"
+                class="min-w-0 flex-1"
+                placeholder="Папка"
+                aria-label="Папка для файла"
+              />
 
-            <UButton
-              type="button"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              icon="i-lucide-file-plus"
-              :label="saved ? 'Добавлено' : 'В папку'"
-              class="rounded-lg px-2.5 text-[11px]"
-              :loading="saving"
-              :disabled="saving || saved || !targetFolderId"
-              @click.stop="saveSummaryToFolder"
-            />
-          </div>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                icon="i-lucide-file-plus"
+                :label="saved ? 'Добавлено' : 'В папку'"
+                class="rounded-lg"
+                :loading="saving"
+                :disabled="saving || saved || !targetFolderId"
+                @click="saveSummaryToFolder"
+              />
+            </div>
+          </template>
 
-          <p v-else class="text-[11px] leading-snug text-dim">
+          <p v-else class="text-sm leading-snug text-dim">
             Нажмите «Суммировать», чтобы получить краткое содержание.
           </p>
-          <div class="mt-auto flex items-center justify-end pt-0.5">
-            <UButton
-              type="button"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              icon="i-lucide-x"
-              label="Закрыть"
-              class="rounded-lg px-2.5 text-[11px]"
-              @click.stop="closePopover"
-            />
-          </div>
         </div>
       </template>
-    </UPopover>
+
+      <template #footer>
+        <div class="flex w-full justify-end">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            size="md"
+            label="Закрыть"
+            class="rounded-xl"
+            @click="closePopover"
+          />
+        </div>
+      </template>
+    </UModal>
   </article>
 </template>
